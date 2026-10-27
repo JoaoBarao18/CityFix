@@ -13,3 +13,11 @@
 .externalNativeBuild
 .cxx
 local.properties
+
+
+# Pastas de build e cache do Android Studio / Gradle
+.gradle/
+build/
+app/build/
+
+# Ficheiros de configuração local com caminhos do SDK
