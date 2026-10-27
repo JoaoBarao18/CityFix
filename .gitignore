@@ -1,23 +1,19 @@
+# Android Studio / IntelliJ
+.idea/
 *.iml
-.gradle
-/local.properties
-/.idea/caches
-/.idea/libraries
-/.idea/modules.xml
-/.idea/workspace.xml
-/.idea/navEditor.xml
-/.idea/assetWizardSettings.xml
+*.ipr
+*.iws
 .DS_Store
+
+# Gradle e Build
+.gradle/
+build/
 /build
+app/build/
 /captures
 .externalNativeBuild
 .cxx
+
+# Configurações Locais e Chaves
 local.properties
-
-
-# Pastas de build e cache do Android Studio / Gradle
-.gradle/
-build/
-app/build/
-
-# Ficheiros de configuração local com caminhos do SDK
+/local.properties
