@@ -1,3 +1,6 @@
+// Inicia a interface do CityFix
+// aplica o tema e chama o AppNavHost.
+
 package pt.isec.amov.a2024136885.cityfix
 
 import android.os.Bundle
@@ -18,9 +21,8 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-
         setContent {
-            CityFIxTheme {
+            CityFIxTheme(dynamicColor = false) {
                 AppNavHost()
             }
         }

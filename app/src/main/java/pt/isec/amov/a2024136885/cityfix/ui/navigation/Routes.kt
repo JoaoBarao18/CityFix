@@ -1,3 +1,6 @@
+// Declara as rotas para a entrada
+// e as ocorrências públicas.
+
 package pt.isec.amov.a2024136885.cityfix.ui.navigation
 
 import kotlinx.serialization.Serializable

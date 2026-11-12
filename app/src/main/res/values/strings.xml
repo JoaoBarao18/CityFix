@@ -1,3 +1,11 @@
 <resources>
-    <string name="app_name">CityFIx</string>
+    <string name="app_name" translatable="false">CityFIx</string>
+    <string name="continue_as_visitor">Continue as a visitor</string>
+    <string name="checking_location">Checking location...</string>
+    <string name="visitor_location_permission_denied">Allow location access to continue as a visitor.</string>
+    <string name="visitor_outside_radius">To continue as a visitor, you must be within 10 km of Praça da República.</string>
+    <string name="visitor_location_unavailable">Could not get your location. Try again.</string>
+    <string name="public_reports_title">Public reports</string>
+    <string name="welcome_description">Report issues.\nTrack their progress.</string>
+    <string name="visitor_radius_note">Browse public reports within 10 km of Praça da República.</string>
 </resources>
