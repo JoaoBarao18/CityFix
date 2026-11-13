@@ -45,6 +45,7 @@ import androidx.navigation.compose.composable
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import pt.isec.amov.a2024136885.cityfix.R
+import pt.isec.amov.a2024136885.cityfix.domain.location.estaDentroRaio
 
 @Composable fun AppNavHost(){
    val navController = rememberNavController()
@@ -92,22 +93,11 @@ import pt.isec.amov.a2024136885.cityfix.R
                   mensagemVisitor = R.string.visitor_location_unavailable
                }else {
                   Log.d("CityFixLocation", "Lat=${location.latitude}, Lon=${location.longitude}")
-                  val resultado = FloatArray(1)
 
-                  Location.distanceBetween(
-                     location.latitude, location.longitude,
-                     PRACA_REPUBLICA_LATITUDE, PRACA_REPUBLICA_LONGITUDE,
-                     resultado
-                  )
-
-                  Log.d("CityFixLocation", "Distancia: ${resultado[0]}m")
-
-                  val distancia = resultado[0]
-                  if(distancia <= 10_000f){
+                  if(estaDentroRaio(location.longitude, location.latitude)){
                      navController.navigate(Route.OcorrenciasPublicas)
                   }else{
                      mensagemVisitor = R.string.visitor_outside_radius
-                     Log.d("CityFixLocation", "Visitante fora do raio")
                   }
                }
             }.addOnFailureListener { erro ->
