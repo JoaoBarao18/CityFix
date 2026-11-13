@@ -1,2 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources></resources>
+<resources>
+    <string name="continue_as_visitor">Continuar como visitante</string>
+    <string name="checking_location">A verificar localização...</string>
+    <string name="visitor_location_permission_denied">Permite o acesso à localização para continuar como visitante.</string>
+    <string name="visitor_outside_radius">Para continuar como visitante, tens de estar a até 10 km da Praça da República.</string>
+    <string name="visitor_location_unavailable">Não foi possível obter a localização. Tenta novamente.</string>
+    <string name="public_reports_title">Ocorrências públicas</string>
+    <string name="welcome_description">Comunique ocorrências.\nAcompanhe a resolução.</string>
+    <string name="visitor_radius_note">Consulta pública num raio de 10 km da Praça da República.</string>
+</resources>
