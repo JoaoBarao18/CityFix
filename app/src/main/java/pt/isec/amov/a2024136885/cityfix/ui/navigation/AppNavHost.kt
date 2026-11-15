@@ -46,6 +46,7 @@ import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import pt.isec.amov.a2024136885.cityfix.R
 import pt.isec.amov.a2024136885.cityfix.domain.location.estaDentroRaio
+import pt.isec.amov.a2024136885.cityfix.ui.screens.publico.PainelPublicoContent
 
 @Composable fun AppNavHost(){
    val navController = rememberNavController()
@@ -132,7 +133,8 @@ import pt.isec.amov.a2024136885.cityfix.domain.location.estaDentroRaio
             )
          }
          composable <Route.OcorrenciasPublicas>{
-            Text(stringResource(R.string.public_reports_title))
+            //Text(stringResource(R.string.public_reports_title))
+            PainelPublicoContent(ocorrencias = emptyList())
          }
       }
    }
