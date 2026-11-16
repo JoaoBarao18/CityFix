@@ -60,4 +60,5 @@ dependencies {
     implementation("com.google.firebase:firebase-firestore")
     implementation("com.google.firebase:firebase-storage")
     implementation("com.google.firebase:firebase-messaging")
+    implementation("org.maplibre.compose:maplibre-compose:0.12.1")
 }
