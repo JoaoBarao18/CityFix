@@ -84,7 +84,7 @@ data class OcorrenciaPublicaUi(
 )
 
 @Composable
-fun PainelPublicoContent(ocorrencias: List<OcorrenciaPublicaUi>){
+fun PainelPublicoContent(ocorrencias: List<OcorrenciaPublicaUi>, onVerTodas: () -> Unit = {}){
     Column(
         modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -122,12 +122,9 @@ fun PainelPublicoContent(ocorrencias: List<OcorrenciaPublicaUi>){
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold
             )
-            TextButton(
-                onClick = {/*Todo*/}
-            ) {
+            TextButton(onClick = onVerTodas) {
                 Text("Ver todas")
             }
-
         }
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             ocorrencias.forEach { ocorrencia ->
