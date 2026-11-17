@@ -17,14 +17,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
-import okio.Path
-import pt.isec.amov.a2024136885.cityfix.ui.theme.CityFIxTheme
-import pt.isec.amov.a2024136885.cityfix.R
 
 @Composable
 fun CartaoEstatistica(
@@ -47,9 +42,10 @@ fun CartaoEstatistica(
 fun Ocorrencia(situation: String,
                categoria: String,
                status: String,
-               pathImg: String? = null
+               pathImg: String? = null,
+               modifier: Modifier = Modifier
 ){
-    Card(modifier = Modifier.fillMaxWidth()) {
+    Card(modifier = modifier.fillMaxWidth()) {
         Row(verticalAlignment = Alignment.CenterVertically){
             Box(modifier = Modifier.size(64.dp)){
                 if(pathImg.isNullOrBlank()){
@@ -77,10 +73,14 @@ fun Ocorrencia(situation: String,
 }
 
 data class OcorrenciaPublicaUi(
+    val id: String,
     val categoria: String,
     val situation: String,
     val status: String,
-    val pathImg: String? = null
+    val pathImg: String? = null,
+    val descricao: String,
+    val latitude: Double,
+    val longitude: Double
 )
 
 @Composable
@@ -141,30 +141,32 @@ fun PainelPublicoContent(ocorrencias: List<OcorrenciaPublicaUi>, onVerTodas: () 
 }
 
 
-
-@Preview(showBackground = true)
-@Composable
-private fun CartaoEstatisitcaPreview(){
-    CityFIxTheme(dynamicColor = false) {
-        val packageName = LocalContext.current.packageName
-        //CartaoEstatistica(titulo = "Tempo médio", valor = "2,4 dias")
-        //PainelPublicoContent()
-        //Ocorrencia("Avaria", "Iluminçaao","Aberto", pathImg = "android.resource://$packageName/${R.drawable.img_welcome}")
-
-        PainelPublicoContent(
-            ocorrencias = listOf(
-                OcorrenciaPublicaUi(
-                    categoria = "Iluminação pública",
-                    situation = "Avaria",
-                    status = "Aberto",
-                    pathImg = "android.resource://$packageName/${R.drawable.img_welcome}"
-                ),
-                OcorrenciaPublicaUi(
-                    categoria = "Vias públicas",
-                    situation = "Dano",
-                    status = "Em resolução"
-                )
-            )
-        )
-    }
-}
+//
+//@Preview(showBackground = true)
+//@Composable
+//private fun CartaoEstatisitcaPreview(){
+//    CityFIxTheme(dynamicColor = false) {
+//        val packageName = LocalContext.current.packageName
+//        //CartaoEstatistica(titulo = "Tempo médio", valor = "2,4 dias")
+//        //PainelPublicoContent()
+//        //Ocorrencia("Avaria", "Iluminçaao","Aberto", pathImg = "android.resource://$packageName/${R.drawable.img_welcome}")
+//
+//        PainelPublicoContent(
+//            ocorrencias = listOf(
+//                OcorrenciaPublicaUi(
+//                    id = "ocorrencia_001",
+//                    categoria = "Iluminação pública",
+//                    situation = "Avaria",
+//                    status = "Aberto",
+//                    pathImg = "android.resource://$packageName/${R.drawable.img_welcome}",
+//                ),
+//                OcorrenciaPublicaUi(
+//                    id = "ocorrencia_002",
+//                    categoria = "Vias públicas",
+//                    situation = "Dano",
+//                    status = "Em resolução",
+//                )
+//            )
+//        )
+//    }
+//}

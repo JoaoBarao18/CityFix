@@ -8,6 +8,11 @@ internal fun ocorrenciasExemplo(packageName: String): List<OcorrenciaPublicaUi> 
         categoria = "Iluminação pública",
         situation = "Avaria na lâmpada",
         status = "Aberto",
-        pathImg = "android.resource://$packageName/${R.drawable.img_welcome}"
+        pathImg = "android.resource://$packageName/${R.drawable.img_welcome}",
+        id = "ocorrencia_003",
+        descricao= "Um cadeeiro da via publica nao esta a fucnioarn",
+        latitude = 38.736946,
+        longitude = -8.898
+
     )
 )

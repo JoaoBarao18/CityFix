@@ -38,10 +38,12 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.toRoute
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import pt.isec.amov.a2024136885.cityfix.R
 import pt.isec.amov.a2024136885.cityfix.domain.location.estaDentroRaio
+import pt.isec.amov.a2024136885.cityfix.ui.screens.publico.DetalheOcorrenciaPublicaContent
 import pt.isec.amov.a2024136885.cityfix.ui.screens.publico.ListaOcorrenciasPublicas
 import pt.isec.amov.a2024136885.cityfix.ui.screens.publico.PainelPublicoContent
 import pt.isec.amov.a2024136885.cityfix.ui.screens.publico.ocorrenciasExemplo
@@ -140,7 +142,29 @@ import pt.isec.amov.a2024136885.cityfix.ui.screens.publico.ocorrenciasExemplo
          }
 
          composable<Route.ListarOcorrenciasPublicas>{
-            ListaOcorrenciasPublicas(ocorrencias = ocorrenciasPublicas)
+            ListaOcorrenciasPublicas(
+               ocorrencias = ocorrenciasPublicas,
+               onAbrirOcorrencia = {id -> navController.navigate(Route.DetalheOcorrenciaPublica(id))}
+               )
+         }
+
+         composable<Route.DetalheOcorrenciaPublica>{
+            entrada ->
+            val rota = entrada.toRoute<Route.DetalheOcorrenciaPublica>()
+            val ocorrencia = ocorrenciasPublicas.firstOrNull(){
+               it.id == rota.id
+            }
+
+            if(ocorrencia != null){
+               DetalheOcorrenciaPublicaContent(
+                  categoria = ocorrencia.categoria,
+                  situacao = ocorrencia.situation,
+                  status = ocorrencia.status,
+                  descricao = ocorrencia.descricao,
+                  latitude = ocorrencia.latitude,
+                  longitude = ocorrencia.longitude
+               )
+            }
          }
       }
    }

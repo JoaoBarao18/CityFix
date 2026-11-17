@@ -22,7 +22,7 @@ import pt.isec.amov.a2024136885.cityfix.ui.theme.CityFIxTheme
 fun DetalheOcorrenciaPublicaContent(
     categoria: String,
     situacao: String,
-    estado: String,
+    status: String,
     descricao: String,
     latitude: Double ,
     longitude: Double,
@@ -34,7 +34,7 @@ fun DetalheOcorrenciaPublicaContent(
     ) {
         Text(text = situacao, style = MaterialTheme.typography.headlineSmall)
         Text(text = categoria, style = MaterialTheme.typography.bodyMedium)
-        Text(text = estado, style = MaterialTheme.typography.labelLarge)
+        Text(text = status, style = MaterialTheme.typography.labelLarge)
         Text(text = descricao, style = MaterialTheme.typography.bodyLarge)
 
         val camera = rememberCameraState(
@@ -60,7 +60,7 @@ private fun DetalheOcorrenciaPublicaPreview() {
         DetalheOcorrenciaPublicaContent(
             categoria = "Iluminação pública",
             situacao = "Avaria",
-            estado = "Aberto",
+            status = "Aberto",
             descricao = "Um candeeiro da via pública deixou de funcionar.",
             latitude = 40.2800,
             longitude = -8.4800
