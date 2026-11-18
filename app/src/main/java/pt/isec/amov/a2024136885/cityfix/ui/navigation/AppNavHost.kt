@@ -47,6 +47,7 @@ import pt.isec.amov.a2024136885.cityfix.ui.screens.publico.DetalheOcorrenciaPubl
 import pt.isec.amov.a2024136885.cityfix.ui.screens.publico.ListaOcorrenciasPublicas
 import pt.isec.amov.a2024136885.cityfix.ui.screens.publico.PainelPublicoContent
 import pt.isec.amov.a2024136885.cityfix.ui.screens.publico.ocorrenciasExemplo
+import kotlin.math.round
 
 @Composable fun AppNavHost(){
    val navController = rememberNavController()
@@ -137,15 +138,19 @@ import pt.isec.amov.a2024136885.cityfix.ui.screens.publico.ocorrenciasExemplo
          composable <Route.OcorrenciasPublicas>{
             PainelPublicoContent(
                ocorrencias = ocorrenciasPublicas,
-               onVerTodas = {navController.navigate(Route.ListarOcorrenciasPublicas)}
+               onVerTodas = {navController.navigate(Route.ListarOcorrenciasPublicas)},
+               onAbrirOcorrencia = {id ->  navController.navigate(Route.DetalheOcorrenciaPublica(id)) }
             )
          }
 
          composable<Route.ListarOcorrenciasPublicas>{
             ListaOcorrenciasPublicas(
                ocorrencias = ocorrenciasPublicas,
-               onAbrirOcorrencia = {id -> navController.navigate(Route.DetalheOcorrenciaPublica(id))}
-               )
+               onAbrirOcorrencia = { id ->
+                  navController.navigate(Route.DetalheOcorrenciaPublica(id))
+               },
+               onVoltar = { navController.popBackStack() }
+            )
          }
 
          composable<Route.DetalheOcorrenciaPublica>{
@@ -161,8 +166,11 @@ import pt.isec.amov.a2024136885.cityfix.ui.screens.publico.ocorrenciasExemplo
                   situacao = ocorrencia.situation,
                   status = ocorrencia.status,
                   descricao = ocorrencia.descricao,
-                  latitude = ocorrencia.latitude,
-                  longitude = ocorrencia.longitude
+                  latitudeAproximada = round(ocorrencia.latitude * 10) / 10,
+                  longitudeAproximada = round(ocorrencia.longitude * 10) / 10,
+                  pathImg = ocorrencia.pathImg,
+                  pathVideo = ocorrencia.pathVideo,
+                  onVoltar = { navController.popBackStack() },
                )
             }
          }
