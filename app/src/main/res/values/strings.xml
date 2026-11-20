@@ -10,4 +10,19 @@
     <string name="visitor_radius_note">Browse public reports within 10 km of Praça da República.</string>
     <string name="create_report_title">Report Issue</string>
     <string name="report_description">Description</string>
+    <string name="report_category">Category</string>
+    <string name="report_situation">Situation</string>
+    <string name="report_situation_damage">Damage</string>
+    <string name="report_situation_breakdown">Breakdown</string>
+    <string name="report_situation_destruction">Destruction</string>
+    <string name="report_situation_theft">Theft</string>
+    <string name="report_public">Public report</string>
+    <string name="report_public_description">Visible in the public list.</string>
+    <string name="report_private_description">Private. Visible to you and municipal services.</string>
+    <string name="report_photo">Photograph</string>
+    <string name="report_photo_preview">Photograph attached to the report</string>
+    <string name="report_take_photo">Take photo</string>
+    <string name="report_replace_photo">Take another photo</string>
+    <string name="report_photo_error">Could not capture or save the photo. Try again.</string>
+    <string name="report_camera_permission_denied">Allow camera access to take a photo. If the permission dialog no longer appears, enable Camera in the app settings.</string>
 </resources>

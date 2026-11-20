@@ -10,4 +10,19 @@
     <string name="visitor_radius_note">Consulta pública num raio de 10 km da Praça da República.</string>
     <string name="create_report_title">Reportar Ocorrência</string>
     <string name="report_description">Descricao</string>
+    <string name="report_category">Categoria</string>
+    <string name="report_situation">Situação</string>
+    <string name="report_situation_damage">Dano</string>
+    <string name="report_situation_breakdown">Avaria</string>
+    <string name="report_situation_destruction">Destruição</string>
+    <string name="report_situation_theft">Roubo</string>
+    <string name="report_public">Ocorrência pública</string>
+    <string name="report_public_description">Visível na lista pública.</string>
+    <string name="report_private_description">Privada. Visível para ti e para os serviços municipais.</string>
+    <string name="report_photo">Fotografia</string>
+    <string name="report_photo_preview">Fotografia anexada à ocorrência</string>
+    <string name="report_take_photo">Tirar fotografia</string>
+    <string name="report_replace_photo">Tirar outra fotografia</string>
+    <string name="report_photo_error">Não foi possível captar ou guardar a fotografia. Tenta novamente.</string>
+    <string name="report_camera_permission_denied">Permite o acesso à câmara para tirar uma fotografia. Se o pedido de permissão deixar de aparecer, ativa a Câmara nas definições da aplicação.</string>
 </resources>
