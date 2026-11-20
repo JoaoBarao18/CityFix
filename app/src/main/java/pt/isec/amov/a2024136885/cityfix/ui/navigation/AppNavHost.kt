@@ -94,7 +94,7 @@ import pt.isec.amov.a2024136885.cityfix.domain.location.estaDentroRaio
                }else {
                   Log.d("CityFixLocation", "Lat=${location.latitude}, Lon=${location.longitude}")
 
-                  if(estaDentroRaio(location.longitude, location.latitude)){
+                  if(estaDentroRaio(longitude = location.longitude, latitude = location.latitude)){
                      navController.navigate(Route.OcorrenciasPublicas)
                   }else{
                      mensagemVisitor = R.string.visitor_outside_radius
