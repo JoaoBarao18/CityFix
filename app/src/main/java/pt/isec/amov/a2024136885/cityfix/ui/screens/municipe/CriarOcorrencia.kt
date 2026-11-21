@@ -68,7 +68,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import pt.isec.amov.a2024136885.cityfix.R
-import pt.isec.amov.a2024136885.cityfix.data.model.Categoria
+import pt.isec.amov.a2024136885.cityfix.data.model.Category
 import pt.isec.amov.a2024136885.cityfix.ui.theme.CityFIxTheme
 import pt.isec.amov.a2024136885.cityfix.ui.viewmodel.CriarOcorrenciaViewModel
 import pt.isec.amov.a2024136885.cityfix.ui.viewmodel.DadosAberturaOcorrencia
@@ -80,7 +80,7 @@ import java.util.UUID
 
 @Composable
 fun CriarOcrrencia(
-    listaCategoria: List<Categoria>,
+    listaCategoria: List<Category>,
     onSubmeter: (DadosAberturaOcorrencia) -> Unit,
     mensagemSubmissao: Int? = null
 ) {
@@ -338,7 +338,7 @@ fun CriarOcrrencia(
 fun CriarOcorrenciaContent(
     descricao: String,
     onDescricaoChange: (String) -> Unit,
-    listacategoria: List<Categoria>,
+    listacategoria: List<Category>,
     categoriaID: String?,
     onCategoriaChange: (String) -> Unit,
     situacao: String?,
@@ -664,7 +664,7 @@ private fun CampoSituacao(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun CampoCategoria(
-    listaCategoria: List<Categoria>,
+    listaCategoria: List<Category>,
     categoriaID: String?,
     onCategoriaChange: (String) -> Unit,
     erro: Int?
@@ -722,9 +722,9 @@ private fun CriarOcorrenciaPreview() {
     CityFIxTheme(dynamicColor = false) {
         CriarOcrrencia(
             listaCategoria = listOf(
-                Categoria("iluminacao", "Iluminação pública", true),
-                Categoria("vias", "Vias públicas", true),
-                Categoria("agua", "Água", false)
+                Category("iluminacao", "Iluminação pública", true),
+                Category("vias", "Vias públicas", true),
+                Category("agua", "Água", false)
             ),
             onSubmeter = { dadosRecebidos = true },
             mensagemSubmissao = if (dadosRecebidos) R.string.report_form_valid else null

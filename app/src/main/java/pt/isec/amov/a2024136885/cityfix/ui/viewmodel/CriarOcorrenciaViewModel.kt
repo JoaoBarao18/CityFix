@@ -2,7 +2,7 @@ package pt.isec.amov.a2024136885.cityfix.ui.viewmodel
 
 import androidx.lifecycle.ViewModel
 import pt.isec.amov.a2024136885.cityfix.R
-import pt.isec.amov.a2024136885.cityfix.data.model.Categoria
+import pt.isec.amov.a2024136885.cityfix.data.model.Category
 
 internal val situacoesOcorrencia = mapOf(
     "dano" to R.string.report_situation_damage,
@@ -37,7 +37,7 @@ data class ErrosCriarOcorrencia(
 
 internal class CriarOcorrenciaViewModel : ViewModel() {
     fun prepararSubmissao(
-        categorias: List<Categoria>,
+        categorias: List<Category>,
         categoriaId: String?,
         situacao: String?,
         descricao: String,
@@ -71,7 +71,7 @@ internal class CriarOcorrenciaViewModel : ViewModel() {
     }
 
     fun validar(
-        categorias: List<Categoria>,
+        categorias: List<Category>,
         categoriaId: String?,
         situacao: String?,
         descricao: String,

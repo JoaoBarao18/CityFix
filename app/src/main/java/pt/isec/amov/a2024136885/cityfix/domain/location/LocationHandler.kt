@@ -2,7 +2,6 @@ package pt.isec.amov.a2024136885.cityfix.domain.location
 
 import android.location.Location
 import android.util.Log
-import pt.isec.amov.a2024136885.cityfix.data.model.Categoria
 
 // Valida o acesso de visitantes ao raio de 10 km da Praça da República.
 internal fun estaDentroRaio(longitude: Double, latitude: Double): Boolean {
