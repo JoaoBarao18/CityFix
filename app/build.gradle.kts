@@ -60,4 +60,10 @@ dependencies {
     implementation("com.google.firebase:firebase-firestore")
     implementation("com.google.firebase:firebase-storage")
     implementation("com.google.firebase:firebase-messaging")
+    implementation(libs.kotlinx.serialization.json)
+    implementation(libs.androidx.material.icons.extended)
+    implementation(libs.maps.compose)
+    implementation(libs.coil.compose)
+    implementation(libs.coil.network)
+    implementation(libs.androidx.work.runtime.ktx)
 }
