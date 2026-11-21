@@ -21,4 +21,22 @@ sealed interface Route{
     data class DetalheOcorrenciaPublica(
         val id: String
     ): Route
+
+    @Serializable
+    data object Login : Route
+
+    @Serializable
+    data class MfaChallenge(val uid: String) : Route
+
+    @Serializable
+    data object Register : Route
+
+    @Serializable
+    data object ForgotPassword : Route
+
+    @Serializable
+    data object ProfileEdit : Route
+
+    @Serializable
+    data object Dashboard : Route
 }
