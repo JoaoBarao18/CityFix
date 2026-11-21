@@ -8,6 +8,10 @@
     <string name="public_reports_title">Public reports</string>
     <string name="welcome_description">Report issues.\nTrack their progress.</string>
     <string name="visitor_radius_note">Browse public reports within 10 km of Praça da República.</string>
+    <string name="impact_detection_title">Possible road hazard</string>
+    <string name="impact_detection_description">A sudden impact was detected. Would you like to report a problem with the road surface?</string>
+    <string name="impact_detection_open_report">Report issue</string>
+    <string name="impact_detection_dismiss">Not now</string>
     <string name="public_report_back">Back</string>
     <string name="public_report_photo">Photo of the report</string>
     <string name="public_report_play_video">Play video</string>
