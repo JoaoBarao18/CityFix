@@ -61,3 +61,11 @@ internal fun registarGeofenceOcorrencia(
 
     return LocationServices.getGeofencingClient(context).addGeofences(asked, pendingIntent)
 }
+
+internal fun removerGeofenceOcorrencia(
+    context: Context,
+    ocorrenciaID: String
+): Task<Void> {
+    return LocationServices.getGeofencingClient(context)
+        .removeGeofences(listOf(ocorrenciaID))
+}
