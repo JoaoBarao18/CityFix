@@ -62,4 +62,7 @@
     <string name="my_reports_title">Minhas ocorrências</string>
     <string name="my_reports_empty">Ainda não tens ocorrências.</string>
     <string name="my_reports_group">Ocorrência de grupo</string>
+    <string name="report_categories_load_error">Não foi possível carregar as categorias.</string>
+    <string name="report_categories_empty">Não há categorias ativas.</string>
+    <string name="report_submission_unavailable">A ocorrência não foi enviada. O envio está indisponível.</string>
 </resources>

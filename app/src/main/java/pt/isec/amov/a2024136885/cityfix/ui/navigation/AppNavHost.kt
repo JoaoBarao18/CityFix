@@ -52,6 +52,8 @@ import pt.isec.amov.a2024136885.cityfix.domain.location.estaDentroRaio
 import pt.isec.amov.a2024136885.cityfix.ui.screens.auth.LoginScreen
 import pt.isec.amov.a2024136885.cityfix.ui.screens.auth.MfaChallengeScreen
 import pt.isec.amov.a2024136885.cityfix.ui.screens.auth.RegisterScreen
+import pt.isec.amov.a2024136885.cityfix.ui.screens.municipe.CriarOcorrenciaRoute
+import pt.isec.amov.a2024136885.cityfix.ui.screens.municipe.SugestaoImpacto
 import pt.isec.amov.a2024136885.cityfix.ui.screens.profile.ProfileEditScreen
 import pt.isec.amov.a2024136885.cityfix.ui.viewmodel.AuthViewModel
 import pt.isec.amov.a2024136885.cityfix.ui.viewmodel.AuthViewModelFactory
@@ -81,6 +83,9 @@ fun AppNavHost() {
       factory = AuthViewModelFactory(authRepository, userRepository)
    )
    val authUiState by authViewModel.uiState.collectAsState()
+   val utilizador = authUiState.currentUser
+   val municipeValidado = authUiState.isLoginSuccessful &&
+      utilizador?.perfil == "municipe" && utilizador.validado
 
    // Transição automática para o ecrã de desafio MFA quando gerado o código
    LaunchedEffect(authUiState.pendingMfaUid) {
@@ -260,6 +265,22 @@ fun AppNavHost() {
                onVerTodas = {navController.navigate(Route.ListarOcorrenciasPublicas)},
                onAbrirOcorrencia = {id ->  navController.navigate(Route.DetalheOcorrenciaPublica(id)) }
             )
+            SugestaoImpacto(
+               detImpactosAtiva = municipeValidado && utilizador?.detecaoImpactos == true,
+               onAbrirOcorrencia = {
+                  navController.navigate(Route.CriarOcorrencia)
+               }
+            )
+         }
+
+         composable<Route.CriarOcorrencia> {
+            if (municipeValidado) {
+               CriarOcorrenciaRoute()
+            } else {
+               LaunchedEffect(Unit) {
+                  navController.popBackStack()
+               }
+            }
          }
 
          composable<Route.ListarOcorrenciasPublicas>{

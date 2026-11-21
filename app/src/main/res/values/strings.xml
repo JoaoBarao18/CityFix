@@ -62,4 +62,7 @@
     <string name="my_reports_title">My reports</string>
     <string name="my_reports_empty">You have no reports yet.</string>
     <string name="my_reports_group">Group report</string>
+    <string name="report_categories_load_error">Could not load report categories.</string>
+    <string name="report_categories_empty">There are no active categories.</string>
+    <string name="report_submission_unavailable">The report was not sent. Submission is currently unavailable.</string>
 </resources>

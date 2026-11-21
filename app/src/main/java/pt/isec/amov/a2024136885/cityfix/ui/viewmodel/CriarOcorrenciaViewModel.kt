@@ -1,8 +1,10 @@
 package pt.isec.amov.a2024136885.cityfix.ui.viewmodel
 
 import androidx.lifecycle.ViewModel
+import com.google.firebase.firestore.FirebaseFirestoreException
 import pt.isec.amov.a2024136885.cityfix.R
 import pt.isec.amov.a2024136885.cityfix.data.model.Category
+import pt.isec.amov.a2024136885.cityfix.data.repository.CategoryRepository
 
 internal val situacoesOcorrencia = mapOf(
     "dano" to R.string.report_situation_damage,
@@ -36,6 +38,16 @@ data class ErrosCriarOcorrencia(
 }
 
 internal class CriarOcorrenciaViewModel : ViewModel() {
+    private val categoryRepository by lazy { CategoryRepository() }
+
+    suspend fun carregarCategoriasAtivas(): Result<List<Category>> {
+        return try {
+            Result.success(categoryRepository.listarAtivas())
+        } catch (erro: FirebaseFirestoreException) {
+            Result.failure(erro)
+        }
+    }
+
     fun prepararSubmissao(
         categorias: List<Category>,
         categoriaId: String?,
