@@ -8,4 +8,18 @@
     <string name="public_reports_title">Public reports</string>
     <string name="welcome_description">Report issues.\nTrack their progress.</string>
     <string name="visitor_radius_note">Browse public reports within 10 km of Praça da República.</string>
+    <string name="public_report_back">Back</string>
+    <string name="public_report_photo">Photo of the report</string>
+    <string name="public_report_play_video">Play video</string>
+    <string name="public_report_close_video">Close video</string>
+    <string name="public_report_approximate_location">Approximate location</string>
+    <string name="public_reports_empty">No public reports to show.</string>
+    <string name="public_report_no_photo">No photo</string>
+    <string name="public_dashboard_title">Public view</string>
+    <string name="public_dashboard_average_time">Average time</string>
+    <string name="public_dashboard_average_value">2.4 days</string>
+    <string name="public_dashboard_reports">Reports</string>
+    <string name="public_dashboard_active">Active</string>
+    <string name="public_dashboard_in_your_city">In your city</string>
+    <string name="public_dashboard_view_all">View all</string>
 </resources>

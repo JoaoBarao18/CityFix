@@ -8,7 +8,6 @@ import kotlinx.serialization.Serializable
 @Serializable
 sealed interface Route{
 
-
     @Serializable
     data object Entrada : Route
     @Serializable
@@ -17,4 +16,9 @@ sealed interface Route{
     data object ListarOcorrenciasPublicas : Route{
 
     }
+
+    @Serializable
+    data class DetalheOcorrenciaPublica(
+        val id: String
+    ): Route
 }
