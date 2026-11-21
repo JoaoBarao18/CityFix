@@ -97,5 +97,8 @@
     <string name="operational_proof_photo">Fotografia anexada como comprovativo da resolução</string>
     <string name="report_categories_load_error">Não foi possível carregar as categorias.</string>
     <string name="report_categories_empty">Não há categorias ativas.</string>
-    <string name="report_submission_unavailable">A ocorrência não foi enviada. O envio está indisponível.</string>
+    <string name="report_submission_unavailable">Não foi possível enviar a ocorrência. Tenta novamente.</string>
+    <string name="report_submission_queued">Ocorrência em espera para envio.</string>
+    <string name="report_submission_sending">A enviar a ocorrência…</string>
+    <string name="report_submission_success">Ocorrência submetida.</string>
 </resources>

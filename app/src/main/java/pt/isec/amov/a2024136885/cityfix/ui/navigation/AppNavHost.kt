@@ -90,9 +90,9 @@ fun AppNavHost() {
    val operador = authUiState.currentUser?.takeIf {
       authUiState.isLoginSuccessful && it.perfil == "operador" && it.validado
    }
-   val utilizador = authUiState.currentUser
-   val municipeValidado = authUiState.isLoginSuccessful &&
-      utilizador?.perfil == "municipe" && utilizador.validado
+   val municipe = authUiState.currentUser?.takeIf {
+      authUiState.isLoginSuccessful && it.perfil == "municipe" && it.validado
+   }
 
    // Transição automática para o ecrã de desafio MFA quando gerado o código
    LaunchedEffect(authUiState.pendingMfaUid) {
@@ -320,10 +320,11 @@ fun AppNavHost() {
             PainelPublicoContent(
                ocorrencias = ocorrenciasPublicas,
                onVerTodas = {navController.navigate(Route.ListarOcorrenciasPublicas)},
-               onAbrirOcorrencia = {id ->  navController.navigate(Route.DetalheOcorrenciaPublica(id)) }
+               onAbrirOcorrencia = { id -> navController.navigate(Route.DetalheOcorrenciaPublica(id)) },
+               onCriarOcorrencia = municipe?.let { { navController.navigate(Route.CriarOcorrencia) } }
             )
             SugestaoImpacto(
-               detImpactosAtiva = municipeValidado && utilizador?.detecaoImpactos == true,
+               detImpactosAtiva = municipe?.detecaoImpactos == true,
                onAbrirOcorrencia = {
                   navController.navigate(Route.CriarOcorrencia)
                }
@@ -331,8 +332,8 @@ fun AppNavHost() {
          }
 
          composable<Route.CriarOcorrencia> {
-            if (municipeValidado) {
-               CriarOcorrenciaRoute()
+            if (municipe != null) {
+               CriarOcorrenciaRoute(autorId = municipe.uid)
             } else {
                LaunchedEffect(Unit) {
                   navController.popBackStack()

@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
@@ -160,7 +161,8 @@ data class OcorrenciaPublicaUi(
 fun PainelPublicoContent(
     ocorrencias: List<OcorrenciaPublicaUi>,
     onVerTodas: () -> Unit = {},
-    onAbrirOcorrencia: (String) -> Unit = {}
+    onAbrirOcorrencia: (String) -> Unit = {},
+    onCriarOcorrencia: (() -> Unit)? = null
 ) {
     LazyColumn(
         modifier = Modifier
@@ -176,6 +178,13 @@ fun PainelPublicoContent(
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.primary
             )
+        }
+        if (onCriarOcorrencia != null) {
+            item {
+                Button(onClick = onCriarOcorrencia, modifier = Modifier.fillMaxWidth()) {
+                    Text(stringResource(R.string.create_report_title))
+                }
+            }
         }
         item {
             Surface(

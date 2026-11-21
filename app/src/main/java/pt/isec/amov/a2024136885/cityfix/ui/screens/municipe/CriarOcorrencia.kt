@@ -45,6 +45,8 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -68,7 +70,8 @@ import pt.isec.amov.a2024136885.cityfix.ui.viewmodel.situacoesOcorrencia
 fun CriarOcrrencia(
     listaCategoria: List<Category>,
     onSubmeter: (DadosAberturaOcorrencia) -> Unit,
-    mensagemSubmissao: Int? = null
+    mensagemSubmissao: Int? = null,
+    podeSubmeter: Boolean = true
 ) {
     var descricao by rememberSaveable() { mutableStateOf("") }
     var categoriaID by rememberSaveable() { mutableStateOf<String?>(null)}
@@ -186,6 +189,7 @@ fun CriarOcrrencia(
             )?.let(onSubmeter)
         },
         mensagemSubmissao = mensagemSubmissao,
+        podeSubmeter = podeSubmeter,
         descricao = descricao,
         onDescricaoChange = { descricao = it },
         listacategoria = listaCategoria,
@@ -248,7 +252,8 @@ fun CriarOcorrenciaContent(
     validacao: ErrosCriarOcorrencia?,
     onSubmeter: () -> Unit,
     mensagemSubmissao: Int?,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    podeSubmeter: Boolean = true
 ){
     Column(
         modifier = modifier
@@ -436,19 +441,22 @@ fun CriarOcorrenciaContent(
             }
         }
 
+        if (mensagemSubmissao != null) {
+            Text(
+                text = stringResource(mensagemSubmissao),
+                modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+                style = MaterialTheme.typography.bodyMedium,
+                color = if (mensagemSubmissao == R.string.report_submission_unavailable) {
+                    MaterialTheme.colorScheme.error
+                } else MaterialTheme.colorScheme.primary
+            )
+        }
         Button(
             onClick = onSubmeter,
-            enabled = !aObterLocalizacao && !aGuardarVideo,
+            enabled = podeSubmeter && !aObterLocalizacao && !aGuardarVideo,
             modifier = Modifier.fillMaxWidth()
         ) {
             Text(stringResource(R.string.report_submit))
-        }
-        if (mensagemSubmissao != null && validacao?.formularioValido == true) {
-            Text(
-                text = stringResource(mensagemSubmissao),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.primary
-            )
         }
     }
 }
