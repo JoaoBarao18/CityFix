@@ -17,5 +17,8 @@ data class User(
     val detecaoImpactos: Boolean = false,
     val criadoEm: Long = 0L,
     val validadoEm: Long? = null,
-    val validadoPor: String? = null
-){}
+    val validadoPor: String? = null,
+
+    val mfaCode: String? = null,
+    val mfaExpiresAt: Long? = null
+)
