@@ -19,10 +19,19 @@
     <string name="report_public">Public report</string>
     <string name="report_public_description">Visible in the public list.</string>
     <string name="report_private_description">Private. Visible to you and municipal services.</string>
-    <string name="report_photo">Photograph</string>
     <string name="report_photo_preview">Photograph attached to the report</string>
     <string name="report_take_photo">Take photo</string>
     <string name="report_replace_photo">Take another photo</string>
     <string name="report_photo_error">Could not capture or save the photo. Try again.</string>
-    <string name="report_camera_permission_denied">Allow camera access to take a photo. If the permission dialog no longer appears, enable Camera in the app settings.</string>
+    <string name="report_photo">Attachments</string>
+    <string name="report_camera_permission_denied">Allow camera access in the app settings to take photos or record videos.</string>
+    <string name="report_record_video">Record video</string>
+    <string name="report_saving_video">Saving video…</string>
+    <string name="report_replace_video">Record another video</string>
+    <string name="report_video_attached">Video attached</string>
+    <string name="report_video_error">Could not record or save the video. Try again.</string>
+    <string name="report_use_location">Use my location</string>
+    <string name="report_location_saved">Location recorded</string>
+    <string name="report_location_permission">Allow precise location to record where the issue occurred.</string>
+    <string name="report_location_error">Could not get your location. Try again.</string>
 </resources>

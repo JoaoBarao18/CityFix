@@ -19,10 +19,19 @@
     <string name="report_public">Ocorrência pública</string>
     <string name="report_public_description">Visível na lista pública.</string>
     <string name="report_private_description">Privada. Visível para ti e para os serviços municipais.</string>
-    <string name="report_photo">Fotografia</string>
     <string name="report_photo_preview">Fotografia anexada à ocorrência</string>
     <string name="report_take_photo">Tirar fotografia</string>
     <string name="report_replace_photo">Tirar outra fotografia</string>
     <string name="report_photo_error">Não foi possível captar ou guardar a fotografia. Tenta novamente.</string>
-    <string name="report_camera_permission_denied">Permite o acesso à câmara para tirar uma fotografia. Se o pedido de permissão deixar de aparecer, ativa a Câmara nas definições da aplicação.</string>
+    <string name="report_photo">Anexos</string>
+    <string name="report_camera_permission_denied">Permite o acesso à câmara nas definições da aplicação para tirar fotografias ou gravar vídeos.</string>
+    <string name="report_record_video">Gravar vídeo</string>
+    <string name="report_saving_video">A guardar vídeo…</string>
+    <string name="report_replace_video">Gravar outro vídeo</string>
+    <string name="report_video_attached">Vídeo anexado</string>
+    <string name="report_video_error">Não foi possível gravar ou guardar o vídeo. Tenta novamente.</string>
+    <string name="report_use_location">Usar a minha localização</string>
+    <string name="report_location_saved">Localização registada</string>
+    <string name="report_location_permission">Permite a localização precisa para registar o local da ocorrência.</string>
+    <string name="report_location_error">Não foi possível obter a localização. Tenta novamente.</string>
 </resources>
