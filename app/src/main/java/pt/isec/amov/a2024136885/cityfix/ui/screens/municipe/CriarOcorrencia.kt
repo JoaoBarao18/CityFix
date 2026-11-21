@@ -52,10 +52,12 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.google.android.gms.location.LocationCallback
 import com.google.android.gms.location.LocationRequest
 import com.google.android.gms.location.LocationResult
@@ -68,24 +70,36 @@ import kotlinx.coroutines.withContext
 import pt.isec.amov.a2024136885.cityfix.R
 import pt.isec.amov.a2024136885.cityfix.data.model.Categoria
 import pt.isec.amov.a2024136885.cityfix.ui.theme.CityFIxTheme
+import pt.isec.amov.a2024136885.cityfix.ui.viewmodel.CriarOcorrenciaViewModel
+import pt.isec.amov.a2024136885.cityfix.ui.viewmodel.DadosAberturaOcorrencia
+import pt.isec.amov.a2024136885.cityfix.ui.viewmodel.ErrosCriarOcorrencia
+import pt.isec.amov.a2024136885.cityfix.ui.viewmodel.situacoesOcorrencia
 import java.io.File
 import java.io.IOException
 import java.util.UUID
 
 @Composable
-fun CriarOcrrencia(listaCategoria: List<Categoria>) {
+fun CriarOcrrencia(
+    listaCategoria: List<Categoria>,
+    onSubmeter: (DadosAberturaOcorrencia) -> Unit,
+    mensagemSubmissao: Int? = null
+) {
     var descricao by rememberSaveable() { mutableStateOf("") }
     var categoriaID by rememberSaveable() { mutableStateOf<String?>(null)}
     var situacao by rememberSaveable() { mutableStateOf<String?>(null)}
     var publica by rememberSaveable() {mutableStateOf(true)}
     var fotoPath by rememberSaveable() { mutableStateOf<String?>(null) }
     var erroFoto by rememberSaveable() { mutableStateOf<Int?>(null) }
-    var videoPath by rememberSaveable { mutableStateOf<String?>(null) }
-    var erroVideo by rememberSaveable { mutableStateOf<Int?>(null) }
-    var permissaoParaVideo by rememberSaveable { mutableStateOf(false) }
-    var aGuardarVideo by remember { mutableStateOf(false) }
-    var lat by rememberSaveable() {mutableStateOf<Double?>(null) }
-    var long by rememberSaveable() {mutableStateOf<Double?>(null) }
+    var videoPath by rememberSaveable() { mutableStateOf<String?>(null) }
+    var erroVideo by rememberSaveable() { mutableStateOf<Int?>(null) }
+    var permissaoParaVideo by rememberSaveable() { mutableStateOf(false) }
+    var aGuardarVideo by remember() { mutableStateOf(false) }
+    var validacaoPedida by rememberSaveable() { mutableStateOf(false) }
+    val formularioViewModel: CriarOcorrenciaViewModel = if (LocalInspectionMode.current) {
+        remember() { CriarOcorrenciaViewModel() }
+    } else {
+        viewModel()
+    }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
 
@@ -246,7 +260,37 @@ fun CriarOcrrencia(listaCategoria: List<Categoria>) {
         }
     }
 
+    val validacao = if (validacaoPedida) {
+        formularioViewModel.validar(
+            categorias = listaCategoria,
+            categoriaId = categoriaID,
+            situacao = situacao,
+            descricao = descricao,
+            latitude = latitude,
+            longitude = longitude,
+            temAnexo = !fotoPath.isNullOrBlank() || !videoPath.isNullOrBlank()
+        )
+    } else {
+        null
+    }
+
     CriarOcorrenciaContent(
+        validacao = validacao,
+        onSubmeter = {
+            validacaoPedida = true
+            formularioViewModel.prepararSubmissao(
+                categorias = listaCategoria,
+                categoriaId = categoriaID,
+                situacao = situacao,
+                descricao = descricao,
+                publica = publica,
+                latitude = latitude,
+                longitude = longitude,
+                fotoPath = fotoPath,
+                videoPath = videoPath
+            )?.let(onSubmeter)
+        },
+        mensagemSubmissao = mensagemSubmissao,
         descricao = descricao,
         onDescricaoChange = { descricao = it },
         listacategoria = listaCategoria,
@@ -276,11 +320,6 @@ fun CriarOcrrencia(listaCategoria: List<Categoria>) {
         },
         fotoPath = fotoPath,
         erroFoto = erroFoto,
-        localRegis = lat !=null && long != null,
-        onLocalizacao = {newLat, newLong ->
-            lat = newLat
-            long = newLong
-        },
         onTirarFoto = {
             erroFoto = null
             pedirCamera(paraVideo = false)
@@ -317,8 +356,9 @@ fun CriarOcorrenciaContent(
     erroVideo: Int?,
     aGuardarVideo: Boolean,
     onGravarVideo: () -> Unit,
-    localRegis: Boolean,
-    onLocalizacao: (Double, Double) -> Unit,
+    validacao: ErrosCriarOcorrencia?,
+    onSubmeter: () -> Unit,
+    mensagemSubmissao: Int?,
     modifier: Modifier = Modifier
 ){
     Column(
@@ -337,11 +377,13 @@ fun CriarOcorrenciaContent(
         CampoCategoria(
             listaCategoria = listacategoria,
             categoriaID = categoriaID,
-            onCategoriaChange = onCategoriaChange
+            onCategoriaChange = onCategoriaChange,
+            erro = validacao?.categoria
         )
         CampoSituacao(
             situacao = situacao,
-            onSituacaoChange = onSituacaoChange
+            onSituacaoChange = onSituacaoChange,
+            erro = validacao?.situacao
         )
 
         //textdfiedl
@@ -352,6 +394,10 @@ fun CriarOcorrenciaContent(
                 Text(stringResource(R.string.report_description))
             },
             modifier = Modifier.fillMaxWidth(),
+            isError = validacao?.descricao != null,
+            supportingText = if (validacao?.descricao != null) {
+                { Text(stringResource(validacao.descricao)) }
+            } else null,
             minLines = 3
         )
 
@@ -411,9 +457,10 @@ fun CriarOcorrenciaContent(
                     color = MaterialTheme.colorScheme.primary
                 )
             }
-            if (erroLocalizacao != null) {
+            val mensagemLocalizacao = erroLocalizacao ?: validacao?.localizacao
+            if (mensagemLocalizacao != null) {
                 Text(
-                    text = stringResource(erroLocalizacao),
+                    text = stringResource(mensagemLocalizacao),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.error
                 )
@@ -490,7 +537,29 @@ fun CriarOcorrenciaContent(
                         color = MaterialTheme.colorScheme.error
                     )
                 }
+                validacao?.anexos?.let { erro ->
+                    Text(
+                        text = stringResource(erro),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
             }
+        }
+
+        Button(
+            onClick = onSubmeter,
+            enabled = !aObterLocalizacao && !aGuardarVideo,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text(stringResource(R.string.report_submit))
+        }
+        if (mensagemSubmissao != null && validacao?.formularioValido == true) {
+            Text(
+                text = stringResource(mensagemSubmissao),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.primary
+            )
         }
     }
 }
@@ -547,25 +616,25 @@ private fun guardarVideo(context: Context, uri: Uri): String {
 @Composable
 private fun CampoSituacao(
     situacao: String?,
-    onSituacaoChange: (String) -> Unit
+    onSituacaoChange: (String) -> Unit,
+    erro: Int?
 ){
     var aberto by rememberSaveable() { mutableStateOf(false)}
-    val opt = mapOf(
-        "dano" to stringResource(R.string.report_situation_damage),
-        "avaria" to stringResource(R.string.report_situation_breakdown),
-        "destruicao" to stringResource(R.string.report_situation_destruction),
-        "roubo" to stringResource(R.string.report_situation_theft)
-        )
+    val textoSelecionado = situacoesOcorrencia[situacao]?.let { stringResource(it) }.orEmpty()
 
     ExposedDropdownMenuBox(
         expanded = aberto,
         onExpandedChange = {aberto = it}
     ) {
         OutlinedTextField(
-            value = opt[situacao.orEmpty()].orEmpty(),
+            value = textoSelecionado,
             onValueChange = {},
             readOnly = true,
             singleLine = true,
+            isError = erro != null,
+            supportingText = if (erro != null) {
+                { Text(stringResource(erro)) }
+            } else null,
             label = {Text(stringResource(R.string.report_situation))
             },
             trailingIcon = {
@@ -579,11 +648,11 @@ private fun CampoSituacao(
             expanded = aberto,
             onDismissRequest = {aberto = false}
         ) {
-            opt.forEach { opt->
+            situacoesOcorrencia.forEach { (codigo, texto) ->
                 DropdownMenuItem(
-                    text = {Text(opt.value)},
+                    text = { Text(stringResource(texto)) },
                     onClick = {
-                        onSituacaoChange(opt.key)
+                        onSituacaoChange(codigo)
                         aberto = false
                     }
                 )
@@ -597,7 +666,8 @@ private fun CampoSituacao(
 private fun CampoCategoria(
     listaCategoria: List<Categoria>,
     categoriaID: String?,
-    onCategoriaChange: (String) -> Unit
+    onCategoriaChange: (String) -> Unit,
+    erro: Int?
 ){
     var aberto by rememberSaveable() {mutableStateOf(false) }
     val catativas = listaCategoria.filter {it.ativa}
@@ -614,6 +684,10 @@ private fun CampoCategoria(
             onValueChange = {},
             readOnly = true,
             singleLine = true,
+            isError = erro != null,
+            supportingText = if (erro != null) {
+                { Text(stringResource(erro)) }
+            } else null,
             label = {Text(stringResource(R.string.report_category))},
             trailingIcon = {
                 ExposedDropdownMenuDefaults.TrailingIcon(expanded = aberto)
@@ -643,6 +717,8 @@ private fun CampoCategoria(
 @Preview(showBackground = true, locale = "pt-rPT", widthDp = 390, heightDp = 844)
 @Composable
 private fun CriarOcorrenciaPreview() {
+    var dadosRecebidos by rememberSaveable { mutableStateOf(false) }
+
     CityFIxTheme(dynamicColor = false) {
         CriarOcrrencia(
             listaCategoria = listOf(
@@ -650,6 +726,8 @@ private fun CriarOcorrenciaPreview() {
                 Categoria("vias", "Vias públicas", true),
                 Categoria("agua", "Água", false)
             ),
+            onSubmeter = { dadosRecebidos = true },
+            mensagemSubmissao = if (dadosRecebidos) R.string.report_form_valid else null
         )
     }
 }

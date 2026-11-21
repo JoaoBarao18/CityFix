@@ -48,4 +48,14 @@
     <string name="report_location_saved">Location recorded</string>
     <string name="report_location_permission">Allow precise location to record where the issue occurred.</string>
     <string name="report_location_error">Could not get your location. Try again.</string>
+    <string name="report_required_category">Select an active category.</string>
+    <string name="report_required_situation">Select a situation.</string>
+    <string name="report_required_description">Enter a description.</string>
+    <string name="report_required_location">Record the location of the issue.</string>
+    <string name="report_required_attachment">Attach at least one photo or video.</string>
+    <string name="report_submit">Submit report</string>
+    <string name="report_form_valid">Report ready to send.</string>
+    <string name="my_reports_title">My reports</string>
+    <string name="my_reports_empty">You have no reports yet.</string>
+    <string name="my_reports_group">Group report</string>
 </resources>
