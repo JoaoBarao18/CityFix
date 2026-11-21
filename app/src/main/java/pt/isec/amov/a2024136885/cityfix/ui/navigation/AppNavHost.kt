@@ -2,12 +2,8 @@
 // raio de 10 km antes de abrir as ocorrências
 package pt.isec.amov.a2024136885.cityfix.ui.navigation
 
-
-import pt.isec.amov.a2024136885.cityfix.domain.location.PRACA_REPUBLICA_LATITUDE
-import pt.isec.amov.a2024136885.cityfix.domain.location.PRACA_REPUBLICA_LONGITUDE
 import android.Manifest
 import android.content.pm.PackageManager
-import android.location.Location
 import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -46,10 +42,14 @@ import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import pt.isec.amov.a2024136885.cityfix.R
 import pt.isec.amov.a2024136885.cityfix.domain.location.estaDentroRaio
+import pt.isec.amov.a2024136885.cityfix.ui.screens.publico.ListaOcorrenciasPublicas
+import pt.isec.amov.a2024136885.cityfix.ui.screens.publico.PainelPublicoContent
+import pt.isec.amov.a2024136885.cityfix.ui.screens.publico.ocorrenciasExemplo
 
 @Composable fun AppNavHost(){
    val navController = rememberNavController()
    val context = LocalContext.current
+   val ocorrenciasPublicas = ocorrenciasExemplo(context.packageName)
    var aCheckarLocalizacao by remember { mutableStateOf(false) }
    var mensagemVisitor by remember { mutableStateOf<Int?>(null) }
    val localCliente = remember(context){
@@ -86,7 +86,8 @@ import pt.isec.amov.a2024136885.cityfix.domain.location.estaDentroRaio
          }
          aCheckarLocalizacao = true
          localCliente.getCurrentLocation(prioridade, null)
-            .addOnSuccessListener { location ->
+            .addOnSuccessListener {
+               location ->
                aCheckarLocalizacao = false
                if(location == null) {
                   Log.d("CityFixLocation", "Posicao indiponvivel")
@@ -132,7 +133,14 @@ import pt.isec.amov.a2024136885.cityfix.domain.location.estaDentroRaio
             )
          }
          composable <Route.OcorrenciasPublicas>{
-            Text(stringResource(R.string.public_reports_title))
+            PainelPublicoContent(
+               ocorrencias = ocorrenciasPublicas,
+               onVerTodas = {navController.navigate(Route.ListarOcorrenciasPublicas)}
+            )
+         }
+
+         composable<Route.ListarOcorrenciasPublicas>{
+            ListaOcorrenciasPublicas(ocorrencias = ocorrenciasPublicas)
          }
       }
    }
