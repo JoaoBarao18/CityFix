@@ -55,11 +55,6 @@ dependencies {
     androidTestImplementation(libs.androidx.junit)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
     debugImplementation(libs.androidx.compose.ui.tooling)
-    implementation(platform("com.google.firebase:firebase-bom:34.2.0"))
-    implementation("com.google.firebase:firebase-auth")
-    implementation("com.google.firebase:firebase-firestore")
-    implementation("com.google.firebase:firebase-storage")
-    implementation("com.google.firebase:firebase-messaging")
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.androidx.material.icons.extended)
     implementation(libs.maps.compose)
@@ -72,4 +67,6 @@ dependencies {
     implementation(libs.firebase.storage)
     implementation(libs.firebase.messaging)
     implementation(libs.kotlinx.coroutines.play.services)
+    implementation("org.maplibre.compose:maplibre-compose:0.12.1")
+    implementation("androidx.compose.material:material-icons-core")
 }

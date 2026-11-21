@@ -56,11 +56,17 @@ import pt.isec.amov.a2024136885.cityfix.ui.screens.profile.ProfileEditScreen
 import pt.isec.amov.a2024136885.cityfix.ui.viewmodel.AuthViewModel
 import pt.isec.amov.a2024136885.cityfix.ui.viewmodel.AuthViewModelFactory
 import pt.isec.amov.a2024136885.cityfix.util.NotificationHelper
+import pt.isec.amov.a2024136885.cityfix.ui.screens.publico.DetalheOcorrenciaPublicaContent
+import pt.isec.amov.a2024136885.cityfix.ui.screens.publico.ListaOcorrenciasPublicas
+import pt.isec.amov.a2024136885.cityfix.ui.screens.publico.PainelPublicoContent
+import pt.isec.amov.a2024136885.cityfix.ui.screens.publico.ocorrenciasExemplo
+import kotlin.math.round
 
 @Composable
 fun AppNavHost() {
    val navController = rememberNavController()
    val context = LocalContext.current
+   val ocorrenciasPublicas = ocorrenciasExemplo(context.packageName)
    var aCheckarLocalizacao by remember { mutableStateOf(false) }
    var mensagemVisitor by remember { mutableStateOf<Int?>(null) }
    val localCliente = remember(context) {
@@ -121,7 +127,8 @@ fun AppNavHost() {
          }
          aCheckarLocalizacao = true
          localCliente.getCurrentLocation(prioridade, null)
-            .addOnSuccessListener { location ->
+            .addOnSuccessListener {
+               location ->
                aCheckarLocalizacao = false
                if (location == null) {
                   Log.d("CityFixLocation", "Posicao indisponivel")
@@ -129,7 +136,7 @@ fun AppNavHost() {
                } else {
                   Log.d("CityFixLocation", "Lat=${location.latitude}, Lon=${location.longitude}")
 
-                  if (estaDentroRaio(location.latitude, location.longitude)) {
+                  if(estaDentroRaio(longitude = location.longitude, latitude = location.latitude)){
                      navController.navigate(Route.OcorrenciasPublicas)
                   } else {
                      mensagemVisitor = R.string.visitor_outside_radius
@@ -247,8 +254,44 @@ fun AppNavHost() {
             )
          }
 
-         composable<Route.OcorrenciasPublicas> {
-            Text(stringResource(R.string.public_reports_title))
+         composable <Route.OcorrenciasPublicas>{
+            PainelPublicoContent(
+               ocorrencias = ocorrenciasPublicas,
+               onVerTodas = {navController.navigate(Route.ListarOcorrenciasPublicas)},
+               onAbrirOcorrencia = {id ->  navController.navigate(Route.DetalheOcorrenciaPublica(id)) }
+            )
+         }
+
+         composable<Route.ListarOcorrenciasPublicas>{
+            ListaOcorrenciasPublicas(
+               ocorrencias = ocorrenciasPublicas,
+               onAbrirOcorrencia = { id ->
+                  navController.navigate(Route.DetalheOcorrenciaPublica(id))
+               },
+               onVoltar = { navController.popBackStack() }
+            )
+         }
+
+         composable<Route.DetalheOcorrenciaPublica>{
+            entrada ->
+            val rota = entrada.toRoute<Route.DetalheOcorrenciaPublica>()
+            val ocorrencia = ocorrenciasPublicas.firstOrNull(){
+               it.id == rota.id
+            }
+
+            if(ocorrencia != null){
+               DetalheOcorrenciaPublicaContent(
+                  categoria = ocorrencia.categoria,
+                  situacao = ocorrencia.situation,
+                  status = ocorrencia.status,
+                  descricao = ocorrencia.descricao,
+                  latitudeAproximada = round(ocorrencia.latitude * 10) / 10,
+                  longitudeAproximada = round(ocorrencia.longitude * 10) / 10,
+                  pathImg = ocorrencia.pathImg,
+                  pathVideo = ocorrencia.pathVideo,
+                  onVoltar = { navController.popBackStack() },
+               )
+            }
          }
       }
    }
