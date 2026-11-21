@@ -1,9 +1,6 @@
 package pt.isec.amov.a2024136885.cityfix.ui.screens.publico
 
-import android.net.Uri
 import android.util.Log
-import android.widget.MediaController
-import android.widget.VideoView
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -16,18 +13,12 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -37,7 +28,6 @@ import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.viewinterop.AndroidView
 import coil3.compose.AsyncImage
 import org.maplibre.compose.camera.CameraPosition
 import org.maplibre.compose.camera.rememberCameraState
@@ -45,6 +35,7 @@ import org.maplibre.compose.map.MaplibreMap
 import org.maplibre.compose.style.BaseStyle
 import org.maplibre.spatialk.geojson.Position
 import pt.isec.amov.a2024136885.cityfix.R
+import pt.isec.amov.a2024136885.cityfix.ui.components.AnexoVideo
 import pt.isec.amov.a2024136885.cityfix.ui.theme.CityFIxTheme
 
 @Composable
@@ -60,7 +51,6 @@ fun DetalheOcorrenciaPublicaContent(
     onVoltar: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
-    var mostrarVideo by remember(pathVideo) { mutableStateOf(false) }
     val estiloAnexo = MaterialTheme.shapes.large
 
     Column(
@@ -105,34 +95,7 @@ fun DetalheOcorrenciaPublicaContent(
         }
 
         if (!pathVideo.isNullOrBlank()) {
-            if (mostrarVideo) {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    AndroidView(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(200.dp),
-                        factory = { context ->
-                            VideoView(context).apply {
-                                setMediaController(MediaController(context))
-                                setOnPreparedListener { it.start() }
-                                setVideoURI(Uri.parse(pathVideo))
-                            }
-                        },
-                        onReset = null,
-                        onRelease = { it.stopPlayback() }
-                    )
-                    OutlinedButton(
-                        onClick = { mostrarVideo = false },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text(stringResource(R.string.public_report_close_video))
-                    }
-                }
-            } else {
-                Button(onClick = { mostrarVideo = true }, modifier = Modifier.fillMaxWidth()) {
-                    Text(stringResource(R.string.public_report_play_video))
-                }
-            }
+            AnexoVideo(pathVideo)
         }
 
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {

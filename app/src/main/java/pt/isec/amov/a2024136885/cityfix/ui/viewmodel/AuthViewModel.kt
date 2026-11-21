@@ -56,9 +56,15 @@ class AuthViewModel(
         _uiState.update { it.copy(isLoading = true, errorMessage = null) }
         viewModelScope.launch {
             val result = authRepository.verifyMfaCode(uid, code)
-            result.onSuccess {
-                fetchCurrentUser()
-                _uiState.update { it.copy(isLoading = false, isLoginSuccessful = true, pendingMfaUid = null) }
+            result.onSuccess { utilizador ->
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        isLoginSuccessful = true,
+                        pendingMfaUid = null,
+                        currentUser = utilizador
+                    )
+                }
             }.onFailure { err ->
                 _uiState.update { it.copy(isLoading = false, errorMessage = err.message) }
             }

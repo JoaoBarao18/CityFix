@@ -4,6 +4,7 @@ package pt.isec.amov.a2024136885.cityfix.ui.navigation
 
 import android.Manifest
 import android.content.pm.PackageManager
+import android.os.Build
 import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -52,7 +53,10 @@ import pt.isec.amov.a2024136885.cityfix.domain.location.estaDentroRaio
 import pt.isec.amov.a2024136885.cityfix.ui.screens.auth.LoginScreen
 import pt.isec.amov.a2024136885.cityfix.ui.screens.auth.MfaChallengeScreen
 import pt.isec.amov.a2024136885.cityfix.ui.screens.auth.RegisterScreen
+import pt.isec.amov.a2024136885.cityfix.ui.screens.operador.DetalheOperacionalScreen
+import pt.isec.amov.a2024136885.cityfix.ui.screens.operador.PainelOperacionalScreen
 import pt.isec.amov.a2024136885.cityfix.ui.screens.profile.ProfileEditScreen
+import pt.isec.amov.a2024136885.cityfix.ui.viewmodel.PainelOperacionalViewModel
 import pt.isec.amov.a2024136885.cityfix.ui.viewmodel.AuthViewModel
 import pt.isec.amov.a2024136885.cityfix.ui.viewmodel.AuthViewModelFactory
 import pt.isec.amov.a2024136885.cityfix.util.NotificationHelper
@@ -81,6 +85,9 @@ fun AppNavHost() {
       factory = AuthViewModelFactory(authRepository, userRepository)
    )
    val authUiState by authViewModel.uiState.collectAsState()
+   val operador = authUiState.currentUser?.takeIf {
+      authUiState.isLoginSuccessful && it.perfil == "operador" && it.validado
+   }
 
    // Transição automática para o ecrã de desafio MFA quando gerado o código
    LaunchedEffect(authUiState.pendingMfaUid) {
@@ -92,7 +99,8 @@ fun AppNavHost() {
    // Transição para as ocorrências após validação completa de login + MFA
    LaunchedEffect(authUiState.isLoginSuccessful) {
       if (authUiState.isLoginSuccessful) {
-         navController.navigate(Route.OcorrenciasPublicas) {
+         val destino = if (operador != null) Route.PainelOperacional else Route.OcorrenciasPublicas
+         navController.navigate(destino) {
             popUpTo(Route.Entrada) { inclusive = true }
          }
       }
@@ -179,10 +187,31 @@ fun AppNavHost() {
          }
 
          composable<Route.Login> {
+            var credenciais by remember { mutableStateOf<Pair<String, String>?>(null) }
+            var notificacoesRecusadas by remember { mutableStateOf(false) }
+            val permissaoNotificacoes = rememberLauncherForActivityResult(
+               ActivityResultContracts.RequestPermission()
+            ) { concedida ->
+               val login = credenciais
+               credenciais = null
+               notificacoesRecusadas = !concedida
+               if (concedida && login != null) authViewModel.initiateLogin(login.first, login.second)
+            }
             LoginScreen(
-               uiState = authUiState,
+               uiState = if (notificacoesRecusadas) {
+                  authUiState.copy(errorMessage = stringResource(R.string.auth_notification_permission))
+               } else authUiState,
                onLoginClick = { email, pass ->
-                  authViewModel.initiateLogin(email, pass)
+                  notificacoesRecusadas = false
+                  if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                     ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) !=
+                     PackageManager.PERMISSION_GRANTED
+                  ) {
+                     credenciais = email to pass
+                     permissaoNotificacoes.launch(Manifest.permission.POST_NOTIFICATIONS)
+                  } else {
+                     authViewModel.initiateLogin(email, pass)
+                  }
                },
                onNavigateToRegister = {
                   authViewModel.clearMessages()
@@ -252,6 +281,34 @@ fun AppNavHost() {
                   navController.popBackStack()
                }
             )
+         }
+
+         composable<Route.PainelOperacional> {
+            if (operador != null) {
+               val painelViewModel: PainelOperacionalViewModel = viewModel()
+               PainelOperacionalScreen(
+                  operadorId = operador.uid,
+                  viewModel = painelViewModel,
+                  onAbrirOcorrencia = { id -> navController.navigate(Route.DetalheOperacional(id)) }
+               )
+            } else {
+               LaunchedEffect(Unit) { navController.navigate(Route.Entrada) }
+            }
+         }
+
+         composable<Route.DetalheOperacional> { entrada ->
+            if (operador != null) {
+               val painel = remember(entrada) { navController.getBackStackEntry(Route.PainelOperacional) }
+               val painelViewModel: PainelOperacionalViewModel = viewModel(viewModelStoreOwner = painel)
+               DetalheOperacionalScreen(
+                  operadorId = operador.uid,
+                  id = entrada.toRoute<Route.DetalheOperacional>().id,
+                  viewModel = painelViewModel,
+                  onVoltar = { navController.popBackStack() }
+               )
+            } else {
+               LaunchedEffect(Unit) { navController.navigate(Route.Entrada) }
+            }
          }
 
          composable <Route.OcorrenciasPublicas>{

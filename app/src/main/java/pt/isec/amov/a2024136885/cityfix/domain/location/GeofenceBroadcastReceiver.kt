@@ -19,7 +19,7 @@ class GeofenceBroadcastReceiver: BroadcastReceiver(){
         if(evt.geofenceTransition != Geofence.GEOFENCE_TRANSITION_ENTER) return
 
         evt.triggeringGeofences.orEmpty().forEach { geofence ->
-            Log.d("CityFizGeofenc", "Etrnada na zona da ocrrencia ${geofence.requestId}")
+            Log.d("CityFixGeofence", "Entrada no perímetro da ocorrência ${geofence.requestId}")
         }
     }
 }
