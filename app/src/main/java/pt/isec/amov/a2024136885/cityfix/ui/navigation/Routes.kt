@@ -45,4 +45,7 @@ sealed interface Route{
 
     @Serializable
     data class DetalheOperacional(val id: String) : Route
+
+    @Serializable
+    data object CriarOcorrencia : Route
 }

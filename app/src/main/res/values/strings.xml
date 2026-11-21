@@ -8,6 +8,10 @@
     <string name="public_reports_title">Public reports</string>
     <string name="welcome_description">Report issues.\nTrack their progress.</string>
     <string name="visitor_radius_note">Browse public reports within 10 km of Praça da República.</string>
+    <string name="impact_detection_title">Possible road hazard</string>
+    <string name="impact_detection_description">A sudden impact was detected. Would you like to report a problem with the road surface?</string>
+    <string name="impact_detection_open_report">Report issue</string>
+    <string name="impact_detection_dismiss">Not now</string>
     <string name="public_report_back">Back</string>
     <string name="public_report_photo">Photo of the report</string>
     <string name="public_report_play_video">Play video</string>
@@ -91,4 +95,7 @@
     <string name="operational_attachment_error">Could not load the attachment.</string>
     <string name="operational_view_photo">View photo</string>
     <string name="operational_proof_photo">Photo attached as proof of resolution</string>
+    <string name="report_categories_load_error">Could not load report categories.</string>
+    <string name="report_categories_empty">There are no active categories.</string>
+    <string name="report_submission_unavailable">The report was not sent. Submission is currently unavailable.</string>
 </resources>
