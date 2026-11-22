@@ -52,7 +52,7 @@ class AuthRepository(
     /**
      * Passo 2 do Login: Valida o código MFA de 6 dígitos introduzido pelo utilizador.
      */
-    suspend fun verifyMfaCode(uid: String, inputCode: String): Result<Boolean> {
+    suspend fun verifyMfaCode(uid: String, inputCode: String): Result<User> {
         return try {
             val doc = firestore.collection("utilizadores").document(uid).get().await()
             val user = doc.toObject(User::class.java)
@@ -78,7 +78,7 @@ class AuthRepository(
                     )
                 ).await()
 
-            Result.success(true)
+            Result.success(user.copy(uid = uid, mfaCode = null, mfaExpiresAt = null))
         } catch (e: Exception) {
             Result.failure(e)
         }

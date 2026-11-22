@@ -1,18 +1,10 @@
 package pt.isec.amov.a2024136885.cityfix.ui.screens.municipe
 
 import android.Manifest
-import android.app.Activity
-import android.content.ActivityNotFoundException
 import android.content.pm.PackageManager
-import android.content.Context
-import android.content.Intent
-import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import android.net.Uri
 import android.os.Looper
-import android.provider.MediaStore
 import android.util.Log
-import android.webkit.MimeTypeMap
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
@@ -42,7 +34,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -54,6 +45,8 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -63,44 +56,34 @@ import com.google.android.gms.location.LocationRequest
 import com.google.android.gms.location.LocationResult
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import pt.isec.amov.a2024136885.cityfix.R
 import pt.isec.amov.a2024136885.cityfix.data.model.Category
+import pt.isec.amov.a2024136885.cityfix.ui.components.rememberCapturaMultimedia
 import pt.isec.amov.a2024136885.cityfix.ui.theme.CityFIxTheme
 import pt.isec.amov.a2024136885.cityfix.ui.viewmodel.CriarOcorrenciaViewModel
 import pt.isec.amov.a2024136885.cityfix.ui.viewmodel.DadosAberturaOcorrencia
 import pt.isec.amov.a2024136885.cityfix.ui.viewmodel.ErrosCriarOcorrencia
 import pt.isec.amov.a2024136885.cityfix.ui.viewmodel.situacoesOcorrencia
-import java.io.File
-import java.io.IOException
-import java.util.UUID
 
 @Composable
 fun CriarOcrrencia(
     listaCategoria: List<Category>,
     onSubmeter: (DadosAberturaOcorrencia) -> Unit,
-    mensagemSubmissao: Int? = null
+    mensagemSubmissao: Int? = null,
+    podeSubmeter: Boolean = true
 ) {
     var descricao by rememberSaveable() { mutableStateOf("") }
     var categoriaID by rememberSaveable() { mutableStateOf<String?>(null)}
     var situacao by rememberSaveable() { mutableStateOf<String?>(null)}
     var publica by rememberSaveable() {mutableStateOf(true)}
-    var fotoPath by rememberSaveable() { mutableStateOf<String?>(null) }
-    var erroFoto by rememberSaveable() { mutableStateOf<Int?>(null) }
-    var videoPath by rememberSaveable() { mutableStateOf<String?>(null) }
-    var erroVideo by rememberSaveable() { mutableStateOf<Int?>(null) }
-    var permissaoParaVideo by rememberSaveable() { mutableStateOf(false) }
-    var aGuardarVideo by remember() { mutableStateOf(false) }
+    val captura = rememberCapturaMultimedia()
     var validacaoPedida by rememberSaveable() { mutableStateOf(false) }
     val formularioViewModel: CriarOcorrenciaViewModel = if (LocalInspectionMode.current) {
         remember() { CriarOcorrenciaViewModel() }
     } else {
         viewModel()
     }
-    val scope = rememberCoroutineScope()
     val context = LocalContext.current
 
     var latitude by rememberSaveable { mutableStateOf<Double?>(null) }
@@ -175,91 +158,6 @@ fun CriarOcrrencia(
         }
     }
 
-    // Mesmo contrato do exemplo AMOVStorageDemo: devolve uma fotografia em miniatura.
-    val cameraLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.TakePicturePreview()
-    ) { bitmap: Bitmap? ->
-        if (bitmap != null) {
-            val ficheiro = guardarFotografia(context, bitmap)
-            erroFoto = if (ficheiro == null) R.string.report_photo_error else null
-            if (ficheiro != null) {
-                fotoPath = ficheiro
-            }
-        }
-    }
-
-    val abrirCamera = {
-        try {
-            cameraLauncher.launch(null)
-        } catch (error: ActivityNotFoundException) {
-            Log.e("CityFixFoto", "Aplicação de câmara indisponível", error)
-            erroFoto = R.string.report_photo_error
-        } catch (error: SecurityException) {
-            Log.e("CityFixFoto", "Permissão de câmara indisponível", error)
-            erroFoto = R.string.report_camera_permission_denied
-        }
-    }
-
-    val videoLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.StartActivityForResult()
-    ) { resultado ->
-        if (resultado.resultCode == Activity.RESULT_OK) {
-            val uri = resultado.data?.data
-            if (uri == null) {
-                erroVideo = R.string.report_video_error
-            } else {
-                aGuardarVideo = true
-                scope.launch {
-                    try {
-                        videoPath = withContext(Dispatchers.IO) {
-                            guardarVideo(context, uri)
-                        }
-                    } catch (erro: IOException) {
-                        Log.e("CityFixVideo", "Falha ao guardar o vídeo", erro)
-                        erroVideo = R.string.report_video_error
-                    } catch (erro: SecurityException) {
-                        Log.e("CityFixVideo", "Falha ao ler o vídeo", erro)
-                        erroVideo = R.string.report_video_error
-                    } finally {
-                        aGuardarVideo = false
-                    }
-                }
-            }
-        }
-    }
-
-    val abrirCameraVideo = {
-        try {
-            videoLauncher.launch(Intent(MediaStore.ACTION_VIDEO_CAPTURE))
-        } catch (erro: ActivityNotFoundException) {
-            erroVideo = R.string.report_video_error
-        } catch (erro: SecurityException) {
-            erroVideo = R.string.report_camera_permission_denied
-        }
-    }
-
-    val permissaoCamera = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestPermission()
-    ) { concedida ->
-        when {
-            concedida && permissaoParaVideo -> abrirCameraVideo()
-            concedida -> abrirCamera()
-            permissaoParaVideo -> erroVideo = R.string.report_camera_permission_denied
-            else -> erroFoto = R.string.report_camera_permission_denied
-        }
-    }
-
-    fun pedirCamera(paraVideo: Boolean) {
-        permissaoParaVideo = paraVideo
-        val concedida = ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) ==
-            PackageManager.PERMISSION_GRANTED
-        when {
-            !concedida -> permissaoCamera.launch(Manifest.permission.CAMERA)
-            paraVideo -> abrirCameraVideo()
-            else -> abrirCamera()
-        }
-    }
-
     val validacao = if (validacaoPedida) {
         formularioViewModel.validar(
             categorias = listaCategoria,
@@ -268,7 +166,7 @@ fun CriarOcrrencia(
             descricao = descricao,
             latitude = latitude,
             longitude = longitude,
-            temAnexo = !fotoPath.isNullOrBlank() || !videoPath.isNullOrBlank()
+            temAnexo = !captura.fotoPath.isNullOrBlank() || !captura.videoPath.isNullOrBlank()
         )
     } else {
         null
@@ -286,11 +184,12 @@ fun CriarOcrrencia(
                 publica = publica,
                 latitude = latitude,
                 longitude = longitude,
-                fotoPath = fotoPath,
-                videoPath = videoPath
+                fotoPath = captura.fotoPath,
+                videoPath = captura.videoPath
             )?.let(onSubmeter)
         },
         mensagemSubmissao = mensagemSubmissao,
+        podeSubmeter = podeSubmeter,
         descricao = descricao,
         onDescricaoChange = { descricao = it },
         listacategoria = listaCategoria,
@@ -318,19 +217,13 @@ fun CriarOcrrencia(
                 )
             }
         },
-        fotoPath = fotoPath,
-        erroFoto = erroFoto,
-        onTirarFoto = {
-            erroFoto = null
-            pedirCamera(paraVideo = false)
-        },
-        videoPath = videoPath,
-        erroVideo = erroVideo,
-        aGuardarVideo = aGuardarVideo,
-        onGravarVideo = {
-            erroVideo = null
-            pedirCamera(paraVideo = true)
-        }
+        fotoPath = captura.fotoPath,
+        erroFoto = captura.erroFoto,
+        onTirarFoto = captura.onTirarFoto,
+        videoPath = captura.videoPath,
+        erroVideo = captura.erroVideo,
+        aGuardarVideo = captura.aGuardar,
+        onGravarVideo = captura.onGravarVideo
     )
 }
 
@@ -359,7 +252,8 @@ fun CriarOcorrenciaContent(
     validacao: ErrosCriarOcorrencia?,
     onSubmeter: () -> Unit,
     mensagemSubmissao: Int?,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    podeSubmeter: Boolean = true
 ){
     Column(
         modifier = modifier
@@ -547,67 +441,22 @@ fun CriarOcorrenciaContent(
             }
         }
 
+        if (mensagemSubmissao != null) {
+            Text(
+                text = stringResource(mensagemSubmissao),
+                modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+                style = MaterialTheme.typography.bodyMedium,
+                color = if (mensagemSubmissao == R.string.report_submission_unavailable) {
+                    MaterialTheme.colorScheme.error
+                } else MaterialTheme.colorScheme.primary
+            )
+        }
         Button(
             onClick = onSubmeter,
-            enabled = !aObterLocalizacao && !aGuardarVideo,
+            enabled = podeSubmeter && !aObterLocalizacao && !aGuardarVideo,
             modifier = Modifier.fillMaxWidth()
         ) {
             Text(stringResource(R.string.report_submit))
-        }
-        if (mensagemSubmissao != null && validacao?.formularioValido == true) {
-            Text(
-                text = stringResource(mensagemSubmissao),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.primary
-            )
-        }
-    }
-}
-
-// based no saveImageToInternalStorage do AMOVStorageDemo.
-private fun guardarFotografia(context: Context, bitmap: Bitmap): String? {
-    // Um nome por captura evita substituir uma fotografia de outra ocorrência.
-    val nome = "foto_${UUID.randomUUID()}.jpg"
-    val ficheiro = File(context.filesDir, nome)
-    return try {
-        val guardada = context.openFileOutput(nome, Context.MODE_PRIVATE).use { stream ->
-            bitmap.compress(Bitmap.CompressFormat.JPEG, 90, stream)
-        }
-        if (guardada) {
-            ficheiro.absolutePath
-        } else {
-            ficheiro.delete()
-            null
-        }
-    } catch (error: IOException) {
-        Log.e("CityFixFoto", "Falha ao guardar a fotografia", error)
-        ficheiro.delete()
-        null
-    }
-}
-
-private fun guardarVideo(context: Context, uri: Uri): String {
-    val resolver = context.contentResolver
-    val extensao = resolver.getType(uri)
-        ?.let { MimeTypeMap.getSingleton().getExtensionFromMimeType(it) }
-        ?: "video"
-    val ficheiro = File(context.filesDir, "video_${UUID.randomUUID()}.$extensao")
-
-    var guardado = false
-    try {
-        val entrada = resolver.openInputStream(uri)
-            ?: throw IOException("Não foi possível abrir o vídeo.")
-        val bytes = entrada.use { origem ->
-            ficheiro.outputStream().use { destino -> origem.copyTo(destino) }
-        }
-        if (bytes == 0L) {
-            throw IOException("O ficheiro de vídeo está vazio.")
-        }
-        guardado = true
-        return ficheiro.absolutePath
-    } finally {
-        if (!guardado) {
-            ficheiro.delete()
         }
     }
 }
