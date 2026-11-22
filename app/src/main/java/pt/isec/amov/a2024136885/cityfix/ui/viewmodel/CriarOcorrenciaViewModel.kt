@@ -1,5 +1,8 @@
 package pt.isec.amov.a2024136885.cityfix.ui.viewmodel
 
+import android.content.Context
+import android.util.Log
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.launch
@@ -7,6 +10,18 @@ import pt.isec.amov.a2024136885.cityfix.R
 import pt.isec.amov.a2024136885.cityfix.data.model.Category
 import pt.isec.amov.a2024136885.cityfix.data.repository.OcorrenciaRepository
 import android.content.Context
+import androidx.work.WorkManager
+import com.google.firebase.firestore.FirebaseFirestoreException
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+import pt.isec.amov.a2024136885.cityfix.R
+import pt.isec.amov.a2024136885.cityfix.data.model.Category
+import pt.isec.amov.a2024136885.cityfix.data.model.Ocorrencia
+import pt.isec.amov.a2024136885.cityfix.data.repository.CategoryRepository
+import pt.isec.amov.a2024136885.cityfix.data.repository.CriarOcorrenciaWorker
+import java.util.UUID
 
 internal val situacoesOcorrencia = mapOf(
     "dano" to R.string.report_situation_damage,
@@ -42,6 +57,55 @@ data class ErrosCriarOcorrencia(
 internal class CriarOcorrenciaViewModel(
     private val ocorrenciaRepository: OcorrenciaRepository = OcorrenciaRepository()
 ) : ViewModel() {
+    private val savedStateHandle: SavedStateHandle = SavedStateHandle()
+) : ViewModel() {
+    private val categoryRepository by lazy { CategoryRepository() }
+    private val _estadoAgendamento = MutableStateFlow<Int?>(null)
+    val estadoAgendamento = _estadoAgendamento.asStateFlow()
+    val idSubmissao = savedStateHandle.getStateFlow<String?>("idSubmissao", null)
+
+    fun observarEnvio(context: Context, id: String) =
+        WorkManager.getInstance(context).getWorkInfosForUniqueWorkFlow(CriarOcorrenciaWorker.nome(id))
+
+    fun submeter(context: Context, autorId: String, dados: DadosAberturaOcorrencia) {
+        if (_estadoAgendamento.value == R.string.report_submission_sending) return
+        val id = idSubmissao.value ?: UUID.randomUUID().toString()
+        val agora = System.currentTimeMillis()
+        val ocorrencia = Ocorrencia(
+            id = id,
+            autorId = autorId,
+            categoriaId = dados.categoriaId,
+            situacao = dados.situacao,
+            descricao = dados.descricao,
+            publica = dados.publica,
+            latitude = dados.latitude,
+            longitude = dados.longitude,
+            criadoEm = agora,
+            atualizadoEm = agora
+        )
+
+        savedStateHandle["idSubmissao"] = id
+        _estadoAgendamento.value = R.string.report_submission_sending
+        viewModelScope.launch {
+            try {
+                CriarOcorrenciaWorker.agendar(context.applicationContext, ocorrencia, dados.fotoPath, dados.videoPath)
+                _estadoAgendamento.value = null
+            } catch (erro: Exception) {
+                if (erro is CancellationException) throw erro
+                Log.w("CriarOcorrencia", "Falha ao agendar o envio", erro)
+                _estadoAgendamento.value = R.string.report_submission_unavailable
+            }
+        }
+    }
+
+    suspend fun carregarCategoriasAtivas(): Result<List<Category>> {
+        return try {
+            Result.success(categoryRepository.listarAtivas())
+        } catch (erro: FirebaseFirestoreException) {
+            Result.failure(erro)
+        }
+    }
+
     fun prepararSubmissao(
         context: Context,
         categorias: List<Category>,

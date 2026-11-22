@@ -24,6 +24,9 @@ class NotificationHelper(private val context: Context) {
         const val CHANNEL_AUTH_NAME = "Autenticação e Segurança"
         const val CHANNEL_TICKETS_NAME = "Atualizações de Ocorrências"
         const val CHANNEL_ALERTS_NAME = "Prazos e Alertas"
+        const val NOTIFICATION_ID = 1001
+        private const val PROXIMIDADE_CHANNEL_ID = "cityfix_proximidade"
+        private const val PROXIMIDADE_NOTIFICATION_ID = 1002
     }
 
     init {
@@ -156,5 +159,45 @@ class NotificationHelper(private val context: Context) {
         } catch (e: SecurityException) {
             // Ignorar se a permissão não existir
         }
+    }
+
+    fun mostrarProximidadeSeNova(uid: String, ocorrenciaId: String, instante: Long) {
+        val preferencias = context.getSharedPreferences("alertasProximidade", Context.MODE_PRIVATE)
+        val chave = "ultimo:$uid:$ocorrenciaId"
+        if (instante > preferencias.getLong(chave, 0L) && mostrarProximidade(ocorrenciaId, instante)) {
+            preferencias.edit().putLong(chave, instante).apply()
+        }
+    }
+
+    internal fun mostrarProximidade(ocorrenciaId: String, instante: Long): Boolean {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) !=
+            PackageManager.PERMISSION_GRANTED
+        ) return false
+        if (!NotificationManagerCompat.from(context).areNotificationsEnabled()) return false
+
+        val manager = context.getSystemService(NotificationManager::class.java)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            manager.createNotificationChannel(NotificationChannel(
+                PROXIMIDADE_CHANNEL_ID,
+                context.getString(R.string.proximity_channel),
+                NotificationManager.IMPORTANCE_HIGH
+            ))
+        }
+        val abrirApp = Intent(context, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+        }
+        val acao = PendingIntent.getActivity(context, 0, abrirApp, PendingIntent.FLAG_IMMUTABLE)
+        val aviso = NotificationCompat.Builder(context, PROXIMIDADE_CHANNEL_ID)
+            .setSmallIcon(android.R.drawable.ic_dialog_info)
+            .setContentTitle(context.getString(R.string.proximity_title))
+            .setContentText(context.getString(R.string.proximity_notification))
+            .setContentIntent(acao)
+            .setWhen(instante)
+            .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
+            .setAutoCancel(true)
+            .build()
+        manager.notify(ocorrenciaId, PROXIMIDADE_NOTIFICATION_ID, aviso)
+        return true
     }
 }
