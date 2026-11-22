@@ -115,4 +115,26 @@
     <string name="public_refresh_pending">A atualizar o painel público…</string>
     <string name="public_refresh_done">Painel público atualizado.</string>
     <string name="public_refresh_error">Não foi possível atualizar o painel público. Tenta novamente.</string>
+    <string name="auth_sign_in_register">Iniciar sessão / Registar</string>
+    <string name="operator_profile">Perfil</string>
+    <string name="operator_validate_users">Validar munícipes</string>
+    <string name="operator_manage_categories">Gerir categorias</string>
+    <string name="operator_logout">Terminar sessão</string>
+    <string name="public_return_home">Voltar ao início</string>
+    <string name="public_page_previous">Anterior</string>
+    <string name="public_page_next">Seguinte</string>
+    <string name="public_page_of">Página %1$d de %2$d</string>
+    <string name="chat_title">Mensagens</string>
+    <string name="chat_empty">Ainda não há mensagens.</string>
+    <string name="chat_locked">Esta ocorrência está encerrada.</string>
+    <string name="chat_input">Mensagem</string>
+    <string name="chat_send">Enviar</string>
+    <string name="chat_error">Não foi possível carregar ou enviar a mensagem.</string>
+    <string name="chat_operator">%1$s (Operador)</string>
+    <string name="report_reopen">Reabrir ocorrência</string>
+    <string name="report_reopen_reason">Justificação (pelo menos 10 caracteres)</string>
+    <string name="report_reopen_error">Não foi possível reabrir a ocorrência. Verifica o prazo de cinco dias.</string>
+    <string name="common_cancel">Cancelar</string>
+    <string name="operational_request_info">Pedir informações</string>
+    <string name="operational_request_info_error">Não foi possível pedir informações.</string>
 </resources>

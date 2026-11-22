@@ -3,6 +3,7 @@ package pt.isec.amov.a2024136885.cityfix.ui.screens.operador
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -13,6 +14,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Card
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -43,77 +45,109 @@ fun PainelOperacionalContent(
     onAbrirOcorrencia: (String) -> Unit,
     onAtualizarPainelPublico: (() -> Unit)? = null,
     aAtualizarPainelPublico: Boolean = false,
-    mensagemPainelPublico: Int? = null
-){
+    mensagemPainelPublico: Int? = null,
+    onPerfilClick: (() -> Unit)? = null,
+    onValidateUsersClick: (() -> Unit)? = null,
+    onManageCategoriesClick: (() -> Unit)? = null,
+    onLogoutClick: (() -> Unit)? = null,
+    aCarregarLista: Boolean = false,
+    onTentarCarregar: (() -> Unit)? = null
+) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        item{
+        item {
             Text(
                 text = stringResource(R.string.operational_panel_title),
                 style = MaterialTheme.typography.headlineSmall,
                 color = MaterialTheme.colorScheme.primary
             )
         }
-        if (onAtualizarPainelPublico != null && ocorrencias.isNotEmpty()) {
+        if (onManageCategoriesClick != null && onValidateUsersClick != null) {
             item {
-                TextButton(onClick = onAtualizarPainelPublico, enabled = !aAtualizarPainelPublico) {
-                    Text(stringResource(if (aAtualizarPainelPublico) R.string.public_refresh_pending else R.string.public_refresh))
-                }
-                if (mensagemPainelPublico != null) {
-                    Text(stringResource(mensagemPainelPublico))
+                Row(modifier = Modifier.fillMaxWidth()) {
+                    TextButton(onClick = onManageCategoriesClick, modifier = Modifier.weight(1f)) {
+                        Text(stringResource(R.string.operator_manage_categories))
+                    }
+                    TextButton(onClick = onValidateUsersClick, modifier = Modifier.weight(1f)) {
+                        Text(stringResource(R.string.operator_validate_users))
+                    }
                 }
             }
         }
-        if(ocorrencias.isEmpty()){
-            item{
-                Text(
-                    stringResource(R.string.operational_panel_empty)
-                )
-            }
-        }
-        items(ocorrencias, key = { it.id }) { ocorrencia->
-            val sit = situacoesOcorrencia[ocorrencia.situacao]
-                ?.let {stringResource(it)} ?:ocorrencia.situacao
-            val status = estadosOcorrencia[ocorrencia.estado]
-                ?.let {stringResource(it)} ?:ocorrencia.estado
-
-            Card(
-                onClick = {onAbrirOcorrencia(ocorrencia.id)},
-                modifier = Modifier.fillMaxWidth()
-            ){
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    Text(
-                        sit, style = MaterialTheme.typography.titleMedium
-                    )
-                    Text(
-                        text = ocorrencia.descricao,
-                        style = MaterialTheme.typography.bodyMedium,
-                        overflow = TextOverflow.Ellipsis,
-                        maxLines = 2
-                    )
-                    Text(
-                        text = status,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.primary
-                    )
+        if (onPerfilClick != null && onLogoutClick != null) {
+            item {
+                Row(modifier = Modifier.fillMaxWidth()) {
+                    TextButton(onClick = onPerfilClick, modifier = Modifier.weight(1f)) {
+                        Text(stringResource(R.string.operator_profile))
+                    }
+                    TextButton(onClick = onLogoutClick, modifier = Modifier.weight(1f)) {
+                        Text(stringResource(R.string.operator_logout))
+                    }
                 }
-
             }
         }
-
+        when {
+            aCarregarLista -> item { CircularProgressIndicator() }
+            onTentarCarregar != null -> item {
+                Text(stringResource(R.string.operational_load_error), color = MaterialTheme.colorScheme.error)
+                OutlinedButton(onClick = onTentarCarregar) {
+                    Text(stringResource(R.string.operational_retry))
+                }
+            }
+            ocorrencias.isEmpty() -> item { Text(stringResource(R.string.operational_panel_empty)) }
+            else -> {
+                if (onAtualizarPainelPublico != null) {
+                    item {
+                        TextButton(onClick = onAtualizarPainelPublico, enabled = !aAtualizarPainelPublico) {
+                            val mensagem = if (aAtualizarPainelPublico) R.string.public_refresh_pending
+                                else R.string.public_refresh
+                            Text(stringResource(mensagem))
+                        }
+                        if (mensagemPainelPublico != null) {
+                            Text(stringResource(mensagemPainelPublico))
+                        }
+                    }
+                }
+                items(ocorrencias, key = { it.id }) { ocorrencia ->
+                    val situacao = situacoesOcorrencia[ocorrencia.situacao]
+                        ?.let { stringResource(it) } ?: ocorrencia.situacao
+                    val estado = estadosOcorrencia[ocorrencia.estado]
+                        ?.let { stringResource(it) } ?: ocorrencia.estado
+                    Card(
+                        onClick = { onAbrirOcorrencia(ocorrencia.id) },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Text(situacao, style = MaterialTheme.typography.titleMedium)
+                            Text(
+                                text = ocorrencia.descricao,
+                                style = MaterialTheme.typography.bodyMedium,
+                                overflow = TextOverflow.Ellipsis,
+                                maxLines = 2
+                            )
+                            Text(
+                                text = estado,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+                }
+            }
+        }
     }
-
 }
 
 data class EventoHistoricoUi(
     val estado: String,
-    val dataHora: String
+    val dataHora: String,
+    val nota: String = ""
 )
 @Composable
 fun DetalheOcoorenciaOperadorContent(
@@ -203,10 +237,12 @@ fun DetalheOcoorenciaOperadorContent(
                    evtEstado,
                    style = MaterialTheme.typography.labelLarge
                )
-                Text(
-                    evt.dataHora,
-                    style = MaterialTheme.typography.bodySmall
-                )
+                if (evt.dataHora.isNotBlank()) {
+                    Text(evt.dataHora, style = MaterialTheme.typography.bodySmall)
+                }
+                if (evt.nota.isNotBlank()) {
+                    Text(evt.nota, style = MaterialTheme.typography.bodyMedium)
+                }
             }
         }
 

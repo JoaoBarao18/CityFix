@@ -17,6 +17,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import pt.isec.amov.a2024136885.cityfix.R
+import pt.isec.amov.a2024136885.cityfix.data.model.User
 import pt.isec.amov.a2024136885.cityfix.data.repository.AnexoPublicado
 import pt.isec.amov.a2024136885.cityfix.data.repository.OcorrenciaPublicada
 import pt.isec.amov.a2024136885.cityfix.ui.components.AnexoVideo
@@ -28,11 +29,13 @@ import java.text.NumberFormat
 @Composable
 internal fun PainelPublicoRoute(
     vm: PainelPublicoViewModel,
+    utilizador: User?,
     onVerTodas: () -> Unit,
     onAbrir: (String) -> Unit,
     onCriar: (() -> Unit)?,
     onMinhas: (() -> Unit)?,
-    visitante: Boolean
+    onPerfil: () -> Unit,
+    onVoltarAoInicio: () -> Unit
 ) {
     val estado by vm.estado.collectAsStateWithLifecycle()
     val dados = estado.dados
@@ -45,6 +48,9 @@ internal fun PainelPublicoRoute(
 
     PainelPublicoContent(
         ocorrencias = dados?.ocorrencias.orEmpty().map { it.paraUi() },
+        currentUser = utilizador,
+        onPerfilClick = onPerfil,
+        onLogoutClick = onVoltarAoInicio,
         onVerTodas = onVerTodas,
         onAbrirOcorrencia = onAbrir,
         onCriarOcorrencia = onCriar,
@@ -54,7 +60,7 @@ internal fun PainelPublicoRoute(
         percentagemAtivas = stats?.let { NumberFormat.getPercentInstance(idioma).format(it.fracaoAtiva) } ?: "—",
         aCarregar = dados == null && !estado.erro,
         onTentarNovamente = (vm::tentarNovamente).takeIf { estado.erro },
-        mostrarNotaVisitante = visitante,
+        mostrarNotaVisitante = utilizador == null,
         carregarMiniatura = vm::urlAnexo
     )
 }

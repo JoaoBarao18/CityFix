@@ -17,6 +17,7 @@ data class ChatUiState(
     val messages: List<Message> = emptyList(),
     val currentUserId: String = "",
     val isSending: Boolean = false,
+    val mensagensEnviadas: Int = 0,
     val isEncerrada: Boolean = false,
     val errorMessage: String? = null
 )
@@ -65,13 +66,13 @@ class ChatViewModel(
     }
 
     fun sendMessage(texto: String) {
-        if (_uiState.value.isEncerrada) return
+        if (_uiState.value.isEncerrada || _uiState.value.isSending || texto.isBlank()) return
 
         _uiState.update { it.copy(isSending = true, errorMessage = null) }
         viewModelScope.launch {
             val result = chatRepository.sendMessage(ticketId, texto)
             result.onSuccess {
-                _uiState.update { it.copy(isSending = false) }
+                _uiState.update { it.copy(isSending = false, mensagensEnviadas = it.mensagensEnviadas + 1) }
             }.onFailure { err ->
                 _uiState.update {
                     it.copy(

@@ -182,8 +182,7 @@ fun CriarOcrrencia(
         validacao = validacao,
         onSubmeter = {
             validacaoPedida = true
-            val dados = formularioViewModel.prepararSubmissao(
-                context = context,
+            formularioViewModel.prepararSubmissao(
                 categorias = listaCategoria,
                 categoriaId = categoriaID,
                 situacao = situacao,
@@ -193,14 +192,11 @@ fun CriarOcrrencia(
                 longitude = longitude,
                 fotoPath = captura.fotoPath,
                 videoPath = captura.videoPath
-            )
-            if (dados != null) {
-                onSubmeter(dados)
-            }
+            )?.let(onSubmeter)
         },
         onVoltar = onVoltar,
         mensagemSubmissao = mensagemSubmissao,
-        podeSubmeter = podeSubmeter,
+        podeSubmeter = podeSubmeter && !captura.aGuardar,
         descricao = descricao,
         onDescricaoChange = { descricao = it },
         listacategoria = listaCategoria,

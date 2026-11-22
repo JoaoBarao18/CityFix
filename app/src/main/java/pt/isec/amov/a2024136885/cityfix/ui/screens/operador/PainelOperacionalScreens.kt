@@ -31,6 +31,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -41,6 +42,7 @@ import kotlinx.coroutines.CancellationException
 import pt.isec.amov.a2024136885.cityfix.R
 import pt.isec.amov.a2024136885.cityfix.data.model.MediaAttachment
 import pt.isec.amov.a2024136885.cityfix.ui.components.AnexoVideo
+import pt.isec.amov.a2024136885.cityfix.ui.components.ChatOcorrencia
 import pt.isec.amov.a2024136885.cityfix.ui.components.rememberCapturaMultimedia
 import pt.isec.amov.a2024136885.cityfix.ui.viewmodel.PainelOperacionalViewModel
 import java.io.File
@@ -48,29 +50,35 @@ import java.text.DateFormat
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import pt.isec.amov.a2024136885.cityfix.data.repository.GuardarResolucaoWorker
-import java.util.Date
-import java.util.Locale
 
 @Composable
 internal fun PainelOperacionalScreen(
     operadorId: String,
     viewModel: PainelOperacionalViewModel,
-    onAbrirOcorrencia: (String) -> Unit
+    onAbrirOcorrencia: (String) -> Unit,
+    onPerfilClick: () -> Unit,
+    onValidateUsersClick: () -> Unit,
+    onManageCategoriesClick: () -> Unit,
+    onLogoutClick: () -> Unit
 ) {
     val estado by viewModel.estado.collectAsStateWithLifecycle()
     LaunchedEffect(operadorId) { viewModel.carregarLista(operadorId) }
 
-    when {
-        estado.aCarregarLista -> ACarregarOcorrencias()
-        estado.erroLista -> ErroAoCarregar { viewModel.carregarLista(operadorId) }
-        else -> PainelOperacionalContent(
-            ocorrencias = estado.ocorrencias,
-            onAbrirOcorrencia = onAbrirOcorrencia,
-            onAtualizarPainelPublico = { viewModel.atualizarPainelPublico(operadorId) },
-            aAtualizarPainelPublico = estado.aAtualizarPainelPublico,
-            mensagemPainelPublico = estado.mensagemPainelPublico
-        )
-    }
+    PainelOperacionalContent(
+        ocorrencias = estado.ocorrencias,
+        onAbrirOcorrencia = onAbrirOcorrencia,
+        onAtualizarPainelPublico = { viewModel.atualizarPainelPublico(operadorId) },
+        aAtualizarPainelPublico = estado.aAtualizarPainelPublico,
+        mensagemPainelPublico = estado.mensagemPainelPublico,
+        onPerfilClick = onPerfilClick,
+        onValidateUsersClick = onValidateUsersClick,
+        onManageCategoriesClick = onManageCategoriesClick,
+        onLogoutClick = onLogoutClick,
+        aCarregarLista = estado.aCarregarLista,
+        onTentarCarregar = if (estado.erroLista) {
+            { viewModel.carregarLista(operadorId) }
+        } else null
+    )
 }
 
 @Composable
@@ -114,11 +122,18 @@ internal fun DetalheOperacionalScreen(
             }
         }
     }
-    val dataHora = remember(Locale.getDefault()) {
-        DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT)
+    val locale = LocalConfiguration.current.locales[0]
+    val dataHora = remember(locale) {
+        DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT, locale)
     }
     val historico = remember(detalhe.historico, dataHora) {
-        detalhe.historico.map { EventoHistoricoUi(it.estado, it.instante?.toDate()?.let { d -> dataHora.format(d) } ?: "") }
+        detalhe.historico.map { evento ->
+            EventoHistoricoUi(
+                evento.estado,
+                evento.instante?.toDate()?.let(dataHora::format).orEmpty(),
+                evento.nota
+            )
+        }
     }
     BackHandler(enabled = estado.aGuardar) {}
 
@@ -133,6 +148,15 @@ internal fun DetalheOperacionalScreen(
             }
         },
         acoes = {
+            if (ocorrencia.estado == "aberto") {
+                OutlinedButton(
+                    onClick = { viewModel.pedirInformacoes(operadorId, id) },
+                    enabled = !estado.aGuardar,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(stringResource(R.string.operational_request_info))
+                }
+            }
             if (ocorrencia.estado in listOf("aberto", "pedido_informacoes")) {
                 Button(
                     onClick = { viewModel.iniciarResolucao(operadorId, id) { proximidade() } },
@@ -208,6 +232,7 @@ internal fun DetalheOperacionalScreen(
             AnexosGuardados(R.string.operational_proof_title, ocorrencia.comprovativosResolucao) { caminho ->
                 viewModel.urlAnexo(operadorId, caminho)
             }
+            ChatOcorrencia(id = id, encerrada = ocorrencia.estado == "encerrado")
         }
     )
 }

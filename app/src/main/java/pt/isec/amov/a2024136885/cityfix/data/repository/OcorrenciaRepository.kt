@@ -8,14 +8,18 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import com.google.firebase.Timestamp
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.DocumentReference
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.Transaction
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
 import pt.isec.amov.a2024136885.cityfix.data.model.Message
 import pt.isec.amov.a2024136885.cityfix.data.model.Ocorrencia
+import pt.isec.amov.a2024136885.cityfix.data.model.toUserSafe
 import pt.isec.amov.a2024136885.cityfix.data.worker.MediaUploadWorker
 import pt.isec.amov.a2024136885.cityfix.data.worker.TicketClosingReminderWorker
 import java.util.UUID
@@ -188,108 +192,112 @@ class OcorrenciaRepository(
         }
     }
 
-    /**
-     * Reabertura da ocorrência pelo Munícipe (autor ou seguidor).
-     * Exige obrigatoriamente estar dentro do prazo de 5 dias após 'resolvido' e conter justificação.
-     */
     suspend fun reabrirOcorrencia(
         ticketId: String,
         justificacao: String,
         context: Context? = null
     ): Result<Unit> {
-        val uid = auth.currentUser?.uid ?: return Result.failure(Exception("Utilizador não autenticado"))
-
-        if (justificacao.trim().length < 10) {
-            return Result.failure(Exception("A justificação de reabertura deve ter pelo menos 10 caracteres."))
-        }
+        val uid = auth.currentUser?.uid ?: return Result.failure(IllegalStateException())
+        val motivo = justificacao.trim()
+        if (motivo.length < 10) return Result.failure(IllegalArgumentException())
 
         return try {
-            val docRef = ocorrenciasCollection.document(ticketId)
-            val snapshot = docRef.get().await()
-            val ocorrencia = snapshot.toObject(Ocorrencia::class.java)
-                ?: return Result.failure(Exception("Ocorrência não encontrada"))
+            val ref = ocorrenciasCollection.document(ticketId)
+            val evento = ref.collection("historico").document()
+            val perfil = firestore.collection("utilizadores").document(uid)
+            firestore.runTransaction { transacao ->
+                val ocorrencia = transacao.get(ref).ocorrencia()
+                val utilizador = transacao.get(perfil).toUserSafe()
+                check(utilizador?.perfil == "municipe" && utilizador.validado && ocorrencia.temParticipante(uid))
+                check(ocorrencia.estado == ESTADO_RESOLVIDO && ocorrencia.resolvidoEm != null && !ocorrencia.prazoDecorrido())
 
-            // 1. Validar estado atual
-            if (ocorrencia.estado != ESTADO_RESOLVIDO) {
-                return Result.failure(Exception("Apenas ocorrências no estado 'Resolvido' podem ser reabertas."))
-            }
+                val contribuicao = transacao.get(firestore.referenciaContribuicao(ticketId))
+                val categoria = if (ocorrencia.publica && ocorrencia.categoriaId.isNotBlank()) {
+                    transacao.get(firestore.collection("categorias").document(ocorrencia.categoriaId))
+                        .getString("nome").orEmpty()
+                } else ""
 
-            // 2. Validar o prazo limite de 5 dias
-            val resolvidoEm = ocorrencia.resolvidoEm
-                ?: return Result.failure(Exception("Data de resolução inválida."))
-
-            val tempoDecorrido = System.currentTimeMillis() - resolvidoEm.toDate().time
-            if (tempoDecorrido > PRAZO_REABERTURA_MS) {
-                // Se excedeu o prazo, bloqueia e marca como encerrado
-                docRef.update(
-                    mapOf(
-                        "estado" to ESTADO_ENCERRADO,
-                        "encerradoEm" to Timestamp.now(),
-                        "atualizadoEm" to Timestamp.now()
-                    )
-                ).await()
-                return Result.failure(Exception("O prazo de 5 dias para contestar esta resolução expirou. A ocorrência foi encerrada."))
-            }
-
-            // 3. Executar a reabertura
-            docRef.update(
-                mapOf(
-                    "estado" to ESTADO_ABERTO,
-                    "resolvidoEm" to FieldValue.delete(),
-                    "atualizadoEm" to Timestamp.now()
+                val agora = Timestamp.now()
+                val reaberta = ocorrencia.copy(
+                    estado = ESTADO_ABERTO,
+                    atualizadoEm = agora,
+                    resolvidoEm = null,
+                    encerradoEm = null,
+                    proximidadeEm = null
                 )
-            ).await()
-
-            adicionarEntradaHistorico(
-                ticketId = ticketId,
-                estadoNovo = ESTADO_ABERTO,
-                autorUid = uid,
-                nota = "Reaberta pelo munícipe: $justificacao"
-            )
-
-            // Cancelar lembrete de fecho pendente
-            val ctx = context ?: this.context
-            if (ctx != null) {
-                try {
-                    WorkManager.getInstance(ctx).cancelAllWorkByTag("reminder_closing_$ticketId")
-                } catch (e: Exception) {
-                    // Ignorar falha no cancelamento do Worker
-                }
+                transacao.update(
+                    ref,
+                    mapOf(
+                        "estado" to ESTADO_ABERTO,
+                        "atualizadoEm" to agora,
+                        "resolvidoEm" to FieldValue.delete(),
+                        "encerradoEm" to FieldValue.delete(),
+                        "proximidadeEm" to FieldValue.delete()
+                    )
+                )
+                transacao.registarTransicao(evento, ocorrencia.estado, ESTADO_ABERTO, uid, motivo)
+                atualizarPainelPublico(firestore, transacao, reaberta, categoria, contribuicao)
+            }.await()
+            (context ?: this.context)?.let {
+                WorkManager.getInstance(it).cancelAllWorkByTag("reminder_closing_$ticketId")
             }
-
             Result.success(Unit)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
 
-    /**
-     * Verifica e encerra a ocorrência se os 5 dias tiverem passado sem contestação.
-     */
-    suspend fun verificarEEncerrarSeExpirado(ticketId: String): Result<Boolean> {
-        return try {
-            val docRef = ocorrenciasCollection.document(ticketId)
-            val snapshot = docRef.get().await()
-            val ocorrencia = snapshot.toObject(Ocorrencia::class.java) ?: return Result.success(false)
+    internal suspend fun verificarEEncerrarSeExpirado(
+        ticketId: String,
+        uid: String,
+        resolvidoEmMs: Long
+    ): Boolean {
+        if (auth.currentUser?.uid != uid) return false
+        val ref = ocorrenciasCollection.document(ticketId)
+        val evento = ref.collection("historico").document()
+        val perfil = firestore.collection("utilizadores").document(uid)
 
-            if (ocorrencia.estado == ESTADO_RESOLVIDO && ocorrencia.resolvidoEm != null) {
-                val tempoDecorrido = System.currentTimeMillis() - ocorrencia.resolvidoEm.toDate().time
-                if (tempoDecorrido > PRAZO_REABERTURA_MS) {
-                    docRef.update(
-                        mapOf(
-                            "estado" to ESTADO_ENCERRADO,
-                            "encerradoEm" to Timestamp.now(),
-                            "atualizadoEm" to Timestamp.now()
-                        )
-                    ).await()
-                    adicionarEntradaHistorico(ticketId, ESTADO_ENCERRADO, "sistema", "Encerramento automático (prazo de 5 dias decorrido)")
-                    return Result.success(true)
-                }
-            }
-            Result.success(false)
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
+        return firestore.runTransaction { transacao ->
+            val documento = transacao.get(ref)
+            if (!documento.exists()) return@runTransaction false
+            val ocorrencia = documento.ocorrencia()
+            val utilizador = transacao.get(perfil).toUserSafe()
+            if (utilizador?.perfil != "municipe" || !utilizador.validado || !ocorrencia.temParticipante(uid) ||
+                ocorrencia.resolvidoEm?.toDate()?.time != resolvidoEmMs || !ocorrencia.prazoDecorrido()
+            ) return@runTransaction false
+
+            transacao.update(
+                ref,
+                mapOf(
+                    "estado" to ESTADO_ENCERRADO,
+                    "encerradoEm" to FieldValue.serverTimestamp(),
+                    "atualizadoEm" to FieldValue.serverTimestamp()
+                )
+            )
+            transacao.registarTransicao(evento, ocorrencia.estado, ESTADO_ENCERRADO, uid)
+            true
+        }.await()
+    }
+
+    private fun Transaction.registarTransicao(
+        evento: DocumentReference,
+        anterior: String,
+        destino: String,
+        uid: String,
+        nota: String = ""
+    ) {
+        set(
+            evento,
+            mapOf(
+                "estado" to destino,
+                "estadoAnterior" to anterior,
+                "dataHora" to FieldValue.serverTimestamp(),
+                "operadorId" to uid,
+                "nota" to nota
+            )
+        )
     }
 
     fun getOcorrenciasByAutorFlow(autorUid: String): Flow<Result<List<Ocorrencia>>> = callbackFlow {
@@ -340,8 +348,7 @@ class OcorrenciaRepository(
                     trySend(Result.failure(error))
                     return@addSnapshotListener
                 }
-                val ocorrencia = snapshot?.toObject(Ocorrencia::class.java)?.copy(id = snapshot.id)
-                trySend(Result.success(ocorrencia))
+                trySend(runCatching { snapshot?.takeIf { it.exists() }?.ocorrencia() })
             }
 
         awaitClose { listener.remove() }
@@ -434,4 +441,12 @@ class OcorrenciaRepository(
             .update("historicoEstados", FieldValue.arrayUnion(entrada))
             .await()
     }
+}
+internal fun Ocorrencia.temParticipante(uid: String): Boolean =
+    uid.isNotBlank() && (autorId == uid || uid in seguidoresIds)
+
+internal fun Ocorrencia.prazoDecorrido(agora: Long = System.currentTimeMillis()): Boolean {
+    val resolucao = resolvidoEm?.toDate()?.time ?: return false
+    return estado == OcorrenciaRepository.ESTADO_RESOLVIDO &&
+        agora - resolucao >= OcorrenciaRepository.PRAZO_REABERTURA_MS
 }

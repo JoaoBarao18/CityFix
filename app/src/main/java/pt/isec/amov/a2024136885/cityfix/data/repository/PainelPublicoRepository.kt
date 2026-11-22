@@ -1,5 +1,6 @@
 package pt.isec.amov.a2024136885.cityfix.data.repository
 
+import com.google.firebase.Timestamp
 import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.storage.FirebaseStorage
@@ -82,7 +83,7 @@ internal class PainelPublicoRepository(
 
 private fun DocumentSnapshot.ocorrenciaPublicada(): OcorrenciaPublicada? {
     val estado = getString("estado") ?: return null
-    if (estado !in listOf("aberto", "pedido_informacoes", "em_resolucao")) return null
+    if (estado !in estadosAtivosOcorrencia) return null
 
     val anexos = (get("anexos") as? List<*>).orEmpty().mapNotNull { valor ->
         val anexo = valor as? Map<*, *> ?: return@mapNotNull null
@@ -98,7 +99,11 @@ private fun DocumentSnapshot.ocorrenciaPublicada(): OcorrenciaPublicada? {
         categoria = getString("categoria").orEmpty(),
         situacao = getString("situacao").orEmpty(),
         estado = estado,
-        atualizadoEm = getLong("atualizadoEm") ?: 0,
+        atualizadoEm = when (val atualizado = get("atualizadoEm")) {
+            is Timestamp -> atualizado.toDate().time
+            is Number -> atualizado.toLong()
+            else -> 0L
+        },
         latitudeAproximada = getDouble("latitudeAproximada"),
         longitudeAproximada = getDouble("longitudeAproximada"),
         anexos = anexos

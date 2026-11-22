@@ -1,5 +1,7 @@
 package pt.isec.amov.a2024136885.cityfix.data.repository
 
+import android.net.Uri
+import com.google.firebase.Timestamp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FieldValue
@@ -78,18 +80,18 @@ internal class OcorrenciaRespository(
 
                 val idGuardado = destino?.id ?: referencia.id
                 val contribuicao = transacao.get(firestore.referenciaContribuicao(idGuardado))
-                val categoria = if (ocorrencia.publica) {
-                    transacao.get(firestore.collection("categorias").document(ocorrencia.categoriaId))
-                        .getString("nome").orEmpty()
-                } else ""
+                val categoria = transacao.get(firestore.collection("categorias").document(ocorrencia.categoriaId))
+                check(categoria.getBoolean("ativa") == true)
+                val agora = Timestamp.now()
+                val criadoEm = ocorrencia.criadoEm ?: agora
 
                 val atualizada = if (destino == null) {
-                    transacao.set(referencia, ocorrencia)
-                    ocorrencia
+                    val nova = ocorrencia.copy(criadoEm = criadoEm, atualizadoEm = agora)
+                    transacao.set(referencia, nova)
+                    nova
                 } else {
                     val anterior = destino.ocorrencia()
                     val juntar = anterior.autorId != ocorrencia.autorId
-                    val agora = com.google.firebase.Timestamp.now()
                     val alteracoes = mutableMapOf<String, Any>(
                         "ficheiros" to FieldValue.arrayUnion(*ocorrencia.ficheiros.toTypedArray()),
                         "atualizadoEm" to agora
@@ -103,7 +105,7 @@ internal class OcorrenciaRespository(
                         atualizadoEm = agora
                     )
                 }
-                atualizarPainelPublico(firestore, transacao, atualizada, categoria, contribuicao)
+                atualizarPainelPublico(firestore, transacao, atualizada, categoria.getString("nome").orEmpty(), contribuicao)
                 transacao.set(
                     submissao,
                     mapOf(
@@ -111,7 +113,7 @@ internal class OcorrenciaRespository(
                         "descricao" to ocorrencia.descricao,
                         "latitude" to ocorrencia.latitude,
                         "longitude" to ocorrencia.longitude,
-                        "criadoEm" to ocorrencia.criadoEm
+                        "criadoEm" to criadoEm
                     )
                 )
                 transacao.set(controloGrupo, mapOf("versao" to atual + 1))
@@ -147,7 +149,7 @@ internal class OcorrenciaRespository(
         }
 
     suspend fun urlAnexo(caminho: String): String =
-        FirebaseStorage.getInstance().reference.child(caminho).downloadUrl.await().toString()
+        FirebaseStorage.getInstance().resolverUrlAnexo(caminho)
 
     private fun verificarSessao(autorId: String) {
         check(autorId.isNotBlank() && auth.currentUser?.uid == autorId)
@@ -187,4 +189,24 @@ private fun Query.observar() = callbackFlow {
         else if (snapshot != null) trySend(snapshot.documents.map { it.ocorrencia() })
     }
     awaitClose(listener::remove)
+}
+
+
+internal suspend fun FirebaseStorage.resolverUrlAnexo(caminho: String): String {
+    val uri = Uri.parse(caminho)
+    val referencia = when (uri.scheme) {
+        null -> reference.child(caminho)
+        "gs" -> getReferenceFromUrl(caminho).also { require(it.bucket == reference.bucket) }
+        "https", "http" -> {
+            // Os anexos anteriores podiam guardar uma URL de download em vez do caminho.
+            val partes = uri.pathSegments
+            val hostValido = (uri.scheme == "https" && uri.host == "firebasestorage.googleapis.com") ||
+                (uri.scheme == "http" && uri.host in listOf("127.0.0.1", "localhost", "10.0.2.2"))
+            require(hostValido && partes.size == 5 &&
+                partes[0] == "v0" && partes[1] == "b" && partes[2] == reference.bucket && partes[3] == "o")
+            reference.child(partes[4])
+        }
+        else -> throw IllegalArgumentException("Caminho de anexo inválido")
+    }
+    return referencia.downloadUrl.await().toString()
 }

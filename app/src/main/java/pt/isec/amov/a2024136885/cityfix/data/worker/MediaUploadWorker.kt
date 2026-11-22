@@ -48,32 +48,28 @@ class MediaUploadWorker(
             val mainDownloadUrl = mainStorageRef.downloadUrl.await().toString()
 
             // 2. Upload da thumbnail (se existir)
-            var thumbDownloadUrl: String? = null
+            var thumbStoragePath: String? = null
+            var thumbFileGuardado: File? = null
             if (!thumbPath.isNullOrBlank()) {
                 val thumbFile = File(thumbPath)
                 if (thumbFile.exists()) {
-                    val thumbStoragePath = "ocorrencias/$ticketId/${thumbFile.name}"
-                    val thumbStorageRef = storage.reference.child(thumbStoragePath)
+                    val caminhoThumb = "ocorrencias/$ticketId/${thumbFile.name}"
+                    val thumbStorageRef = storage.reference.child(caminhoThumb)
                     val thumbMetadata = StorageMetadata.Builder()
                         .setContentType("image/jpeg")
                         .build()
                     thumbStorageRef.putFile(Uri.fromFile(thumbFile), thumbMetadata).await()
-                    thumbDownloadUrl = thumbStorageRef.downloadUrl.await().toString()
-
-                    // Limpar thumbnail local temporária da cache
-                    thumbFile.delete()
+                    thumbStoragePath = caminhoThumb
+                    thumbFileGuardado = thumbFile
                 }
             }
-
-            // Limpar ficheiro principal local da cache
-            mediaFile.delete()
 
             // 3. Atualizar o documento da ocorrência no Firestore
             val attachment = MediaAttachment(
                 tipo = tipo,
-                storagePath = mainDownloadUrl,
+                storagePath = mainStoragePath,
                 contentType = contentType,
-                thumbnailPath = thumbDownloadUrl
+                thumbnailPath = thumbStoragePath
             )
 
             firestore.collection("ocorrencias")
@@ -83,6 +79,8 @@ class MediaUploadWorker(
                     "atualizadoEm", com.google.firebase.Timestamp.now()
                 ).await()
 
+            mediaFile.delete()
+            thumbFileGuardado?.delete()
             Log.d(TAG, "Upload concluído com sucesso para o ticket: $ticketId")
             Result.success(workDataOf(KEY_DOWNLOAD_URL to mainDownloadUrl))
         } catch (e: Exception) {

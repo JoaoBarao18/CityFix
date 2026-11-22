@@ -1,16 +1,22 @@
 package pt.isec.amov.a2024136885.cityfix.ui.viewmodel
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import pt.isec.amov.a2024136885.cityfix.R
 import pt.isec.amov.a2024136885.cityfix.data.model.Ocorrencia
+import pt.isec.amov.a2024136885.cityfix.data.repository.OcorrenciaRepository
 import pt.isec.amov.a2024136885.cityfix.data.repository.OcorrenciaRespository
+import pt.isec.amov.a2024136885.cityfix.data.repository.temParticipante
 
 internal data class MinhaOcorrencia(
     val dados: Ocorrencia,
@@ -21,8 +27,13 @@ internal data class MinhaOcorrencia(
     val emGrupo get() = dados.seguidoresIds.any { it != dados.autorId }
 }
 
+internal data class EstadoReabertura(val aReabrir: Boolean = false, val erro: Boolean = false)
+
 internal class MinhasOcorrenciasViewModel : ViewModel() {
     private val repositorio by lazy { OcorrenciaRespository() }
+    private val ciclo by lazy { OcorrenciaRepository() }
+    private val _reabertura = MutableStateFlow(EstadoReabertura())
+    val reabertura = _reabertura.asStateFlow()
 
     fun observar(autorId: String) = repositorio.observarMinhas(autorId)
         .map { lista ->
@@ -44,21 +55,31 @@ internal class MinhasOcorrenciasViewModel : ViewModel() {
             Result.success(dados)
         }.catch { emit(Result.failure(it)) }
 
-    suspend fun carregarDetalhe(autorId: String, id: String): Result<MinhaOcorrencia> =
-        try {
-            val ocorrencia = repositorio.carregarMinha(autorId, id)
-            val foto = ocorrencia.ficheiros.firstOrNull { it.tipo == "foto" }
-            val video = ocorrencia.ficheiros.firstOrNull { it.tipo == "video" }
-            Result.success(MinhaOcorrencia(
-                ocorrencia,
-                tentar { repositorio.nomeCategoria(ocorrencia.categoriaId) },
-                obterUrl(foto?.storagePath),
-                obterUrl(video?.storagePath)
-            ))
-        } catch (erro: Exception) {
-            if (erro is CancellationException) throw erro
-            Result.failure(erro)
+    fun observarDetalhe(autorId: String, id: String) = ciclo.getOcorrenciaFlow(id).map { resultado ->
+        val ocorrencia = resultado.getOrThrow()
+            ?.takeIf { it.temParticipante(autorId) }
+            ?: error("Ocorrência indisponível")
+        val foto = ocorrencia.ficheiros.firstOrNull { it.tipo == "foto" }
+        val video = ocorrencia.ficheiros.firstOrNull { it.tipo == "video" }
+        Result.success(MinhaOcorrencia(
+            ocorrencia,
+            tentar { repositorio.nomeCategoria(ocorrencia.categoriaId) },
+            obterUrl(foto?.storagePath),
+            obterUrl(video?.storagePath)
+        ))
+    }.catch { emit(Result.failure(it)) }
+
+    fun reabrir(id: String, justificacao: String) {
+        if (_reabertura.value.aReabrir || justificacao.trim().length < 10) return
+        _reabertura.value = EstadoReabertura(aReabrir = true)
+        viewModelScope.launch {
+            _reabertura.value = EstadoReabertura(erro = ciclo.reabrirOcorrencia(id, justificacao).isFailure)
         }
+    }
+
+    fun limparErroReabertura() {
+        _reabertura.value = EstadoReabertura()
+    }
 
     private suspend fun obterUrl(caminho: String?): String? {
         if (caminho.isNullOrBlank()) return null

@@ -1,6 +1,6 @@
 package pt.isec.amov.a2024136885.cityfix.ui.screens.municipe
 
-import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -35,7 +35,7 @@ internal fun CriarOcorrenciaRoute(
         initialValue = null,
         key1 = formularioViewModel
     ) {
-        value = formularioViewModel.carregarCategoriasAtivas()
+        formularioViewModel.observarCategoriasAtivas().collect { value = it }
     }
     val categorias = resultadoCategorias?.getOrNull()
     val context = LocalContext.current.applicationContext
@@ -44,19 +44,26 @@ internal fun CriarOcorrenciaRoute(
     val trabalhos by remember(context, id) {
         id?.let { formularioViewModel.observarEnvio(context, it) } ?: flowOf(emptyList())
     }.collectAsStateWithLifecycle(initialValue = emptyList())
-    val trabalho = trabalhos.firstOrNull()
+    val trabalho = trabalhos.firstOrNull { !it.state.isFinished }
+        ?: trabalhos.firstOrNull { it.state == WorkInfo.State.SUCCEEDED }
+        ?: trabalhos.firstOrNull()
     val estadoEnvio = trabalho?.state
-    val mensagemSubmissao = agendamento ?: when (estadoEnvio) {
+    val aAgendar = agendamento == R.string.report_submission_sending
+    val mensagemSubmissao = if (aAgendar) agendamento else when (estadoEnvio) {
         WorkInfo.State.ENQUEUED, WorkInfo.State.BLOCKED -> R.string.report_submission_queued
         WorkInfo.State.RUNNING -> R.string.report_submission_sending
         WorkInfo.State.SUCCEEDED -> if (trabalho.outputData.getBoolean("agrupada", false)) {
             R.string.report_submission_grouped
         } else R.string.report_submission_success
         WorkInfo.State.FAILED, WorkInfo.State.CANCELLED -> R.string.report_submission_unavailable
-        null -> null
+        null -> agendamento
     }
-    val podeSubmeter = agendamento != R.string.report_submission_sending &&
-        (estadoEnvio == null || estadoEnvio in listOf(WorkInfo.State.FAILED, WorkInfo.State.CANCELLED))
+    val podeSubmeter = !aAgendar && when (estadoEnvio) {
+        WorkInfo.State.FAILED, WorkInfo.State.CANCELLED -> true
+        null -> agendamento != R.string.report_submission_queued
+        else -> false
+    }
+    BackHandler(enabled = aAgendar) {}
 
     when {
         resultadoCategorias?.isFailure == true -> Text(
@@ -80,12 +87,8 @@ internal fun CriarOcorrenciaRoute(
             }
             CriarOcrrencia(
                 listaCategoria = categorias.orEmpty(),
-                onSubmeter = { dados ->
-                    formularioViewModel.submeter(context, autorId, dados)
-                    Toast.makeText(context, "Ocorrência enviada com sucesso!", Toast.LENGTH_LONG).show()
-                    onVoltar()
-                },
-                onVoltar = onVoltar,
+                onSubmeter = { dados -> formularioViewModel.submeter(context, autorId, dados) },
+                onVoltar = { if (!aAgendar) onVoltar() },
                 mensagemSubmissao = mensagemSubmissao,
                 podeSubmeter = podeSubmeter,
                 modifier = Modifier.weight(1f)
