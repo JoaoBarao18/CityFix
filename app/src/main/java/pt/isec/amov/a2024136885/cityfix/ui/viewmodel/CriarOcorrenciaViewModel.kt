@@ -1,8 +1,12 @@
 package pt.isec.amov.a2024136885.cityfix.ui.viewmodel
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.launch
 import pt.isec.amov.a2024136885.cityfix.R
 import pt.isec.amov.a2024136885.cityfix.data.model.Category
+import pt.isec.amov.a2024136885.cityfix.data.repository.OcorrenciaRepository
+import android.content.Context
 
 internal val situacoesOcorrencia = mapOf(
     "dano" to R.string.report_situation_damage,
@@ -35,8 +39,11 @@ data class ErrosCriarOcorrencia(
             localizacao == null && anexos == null
 }
 
-internal class CriarOcorrenciaViewModel : ViewModel() {
+internal class CriarOcorrenciaViewModel(
+    private val ocorrenciaRepository: OcorrenciaRepository = OcorrenciaRepository()
+) : ViewModel() {
     fun prepararSubmissao(
+        context: Context,
         categorias: List<Category>,
         categoriaId: String?,
         situacao: String?,
@@ -46,7 +53,7 @@ internal class CriarOcorrenciaViewModel : ViewModel() {
         longitude: Double?,
         fotoPath: String?,
         videoPath: String?
-    ): DadosAberturaOcorrencia? {
+    ) {
         val erros = validar(
             categorias = categorias,
             categoriaId = categoriaId,
@@ -56,18 +63,22 @@ internal class CriarOcorrenciaViewModel : ViewModel() {
             longitude = longitude,
             temAnexo = !fotoPath.isNullOrBlank() || !videoPath.isNullOrBlank()
         )
-        if (!erros.formularioValido) return null
+        if (!erros.formularioValido) return
 
-        return DadosAberturaOcorrencia(
-            categoriaId = requireNotNull(categoriaId),
-            situacao = requireNotNull(situacao),
-            descricao = descricao.trim(),
-            publica = publica,
-            latitude = requireNotNull(latitude),
-            longitude = requireNotNull(longitude),
-            fotoPath = fotoPath,
-            videoPath = videoPath
-        )
+        viewModelScope.launch {
+            ocorrenciaRepository.criarOcorrencia(
+                context = context,
+                categoriaId = requireNotNull(categoriaId),
+                situacao = requireNotNull(situacao),
+                descricao = descricao.trim(),
+                publica = publica,
+                latitude = requireNotNull(latitude),
+                longitude = requireNotNull(longitude),
+                fotoPath = fotoPath,
+                thumbPath = null, // Thumbnails são tratadas no worker ou image compressor
+                videoPath = videoPath
+            )
+        }
     }
 
     fun validar(

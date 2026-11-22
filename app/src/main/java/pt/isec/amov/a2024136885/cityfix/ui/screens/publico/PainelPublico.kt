@@ -31,6 +31,16 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.filled.GroupAdd
+import androidx.compose.material.icons.filled.Category
+import androidx.compose.material.icons.automirrored.filled.ExitToApp
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Icon
+import pt.isec.amov.a2024136885.cityfix.data.model.User
 import coil3.compose.AsyncImage
 import pt.isec.amov.a2024136885.cityfix.R
 
@@ -140,6 +150,7 @@ fun Ocorrencia(
                 }
             }
         }
+        
     }
 }
 
@@ -159,23 +170,97 @@ data class OcorrenciaPublicaUi(
 @Composable
 fun PainelPublicoContent(
     ocorrencias: List<OcorrenciaPublicaUi>,
+    currentUser: User? = null,
     onVerTodas: () -> Unit = {},
-    onAbrirOcorrencia: (String) -> Unit = {}
+    onAbrirOcorrencia: (String) -> Unit = {},
+    onPerfilClick: () -> Unit = {},
+    onValidateUsersClick: () -> Unit = {},
+    onManageCategoriesClick: () -> Unit = {},
+    onLogoutClick: () -> Unit = {}
 ) {
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background),
-        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
+    Box(modifier = Modifier.fillMaxSize()) {
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background),
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
         item {
-            Text(
-                text = "CityFix",
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = "CityFix",
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                if (currentUser != null) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        // Botões exclusivos de Operador
+                        if (currentUser.perfil == "operador") {
+                            IconButton(
+                                onClick = onManageCategoriesClick,
+                                modifier = Modifier
+                                    .size(48.dp)
+                                    .clip(CircleShape)
+                                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Category,
+                                    contentDescription = "Gerir Categorias",
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                            
+                            IconButton(
+                                onClick = onValidateUsersClick,
+                                modifier = Modifier
+                                    .size(48.dp)
+                                    .clip(CircleShape)
+                                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.GroupAdd,
+                                    contentDescription = "Validar Utilizadores",
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        }
+
+                        // Botão de Perfil
+                        IconButton(
+                            onClick = onPerfilClick,
+                            modifier = Modifier
+                                .size(48.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.surfaceVariant)
+                        ) {
+                            if (!currentUser.fotoUrl.isNullOrBlank()) {
+                                AsyncImage(
+                                    model = currentUser.fotoUrl,
+                                    contentDescription = "Perfil",
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentScale = ContentScale.Crop
+                                )
+                            } else {
+                                Icon(
+                                    imageVector = Icons.Default.AccountCircle,
+                                    contentDescription = "Perfil",
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(32.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
         }
         item {
             Surface(
@@ -257,6 +342,22 @@ fun PainelPublicoContent(
                     onAbrirOcorrencia(ocorrencia.id)
                 },
                 pathImg = ocorrencia.pathImg,
+            )
+        }
+    }
+
+        FloatingActionButton(
+            onClick = onLogoutClick,
+            containerColor = MaterialTheme.colorScheme.errorContainer,
+            contentColor = MaterialTheme.colorScheme.onErrorContainer,
+            shape = CircleShape,
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(16.dp)
+        ) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.ExitToApp,
+                contentDescription = if (currentUser != null) "Terminar Sessão" else "Voltar ao Início"
             )
         }
     }

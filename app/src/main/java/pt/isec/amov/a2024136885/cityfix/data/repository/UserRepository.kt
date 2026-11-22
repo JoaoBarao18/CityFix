@@ -1,6 +1,10 @@
 package pt.isec.amov.a2024136885.cityfix.data.repository
 
+import com.google.firebase.Timestamp
 import com.google.firebase.firestore.FirebaseFirestore
+import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
 import pt.isec.amov.a2024136885.cityfix.data.model.User
 
@@ -45,25 +49,32 @@ class UserRepository(
     }
 
     /**
-     * Obtém a lista de munícipes pendentes de validação (exclusivo para Operadores).
+     * Escuta em tempo real os munícipes pendentes de validação.
      */
-    suspend fun getPendingMunicipes(): Result<List<User>> {
-        return try {
-            val snapshot = firestore.collection("utilizadores")
-                .whereEqualTo("perfil", "municipe")
-                .whereEqualTo("validado", false)
-                .get()
-                .await()
+    fun getPendingMunicipesFlow(): Flow<Result<List<User>>> = callbackFlow {
+        val listener = firestore.collection("utilizadores")
+            .whereEqualTo("perfil", "municipe")
+            .whereEqualTo("validado", false)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    trySend(Result.failure(error))
+                    return@addSnapshotListener
+                }
+                val users = snapshot?.documents?.mapNotNull { doc ->
+                    try {
+                        doc.toObject(User::class.java)?.copy(uid = doc.id)
+                    } catch (e: Exception) {
+                        null
+                    }
+                } ?: emptyList()
+                trySend(Result.success(users))
+            }
 
-            val list = snapshot.documents.mapNotNull { it.toObject(User::class.java) }
-            Result.success(list)
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
+        awaitClose { listener.remove() }
     }
 
     /**
-     * Valida um munícipe através do NIF, registando o operador responsável e timestamp.
+     * Ativa o registo de um munícipe registando o operador e a data.
      */
     suspend fun validateMunicipe(municipeUid: String, operadorUid: String): Result<Unit> {
         return try {
@@ -72,7 +83,7 @@ class UserRepository(
                 .update(
                     mapOf(
                         "validado" to true,
-                        "validadoEm" to System.currentTimeMillis(),
+                        "validadoEm" to Timestamp.now(),
                         "validadoPor" to operadorUid
                     )
                 ).await()

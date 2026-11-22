@@ -279,6 +279,7 @@ fun CriarOcrrencia(
         onSubmeter = {
             validacaoPedida = true
             formularioViewModel.prepararSubmissao(
+                context = context,
                 categorias = listaCategoria,
                 categoriaId = categoriaID,
                 situacao = situacao,
@@ -288,7 +289,20 @@ fun CriarOcrrencia(
                 longitude = longitude,
                 fotoPath = fotoPath,
                 videoPath = videoPath
-            )?.let(onSubmeter)
+            )
+            // Simula um callback dummy se for necessário 
+            onSubmeter(
+                DadosAberturaOcorrencia(
+                    categoriaId = categoriaID ?: "",
+                    situacao = situacao ?: "",
+                    descricao = descricao,
+                    publica = publica,
+                    latitude = latitude ?: 0.0,
+                    longitude = longitude ?: 0.0,
+                    fotoPath = fotoPath,
+                    videoPath = videoPath
+                )
+            )
         },
         mensagemSubmissao = mensagemSubmissao,
         descricao = descricao,

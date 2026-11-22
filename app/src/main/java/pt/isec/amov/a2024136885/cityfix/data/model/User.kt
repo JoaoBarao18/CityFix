@@ -1,6 +1,9 @@
 package pt.isec.amov.a2024136885.cityfix.data.model
 
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.Contextual
+import com.google.firebase.Timestamp
+import com.google.firebase.firestore.ServerTimestamp
 
 @Serializable
 data class User(
@@ -15,10 +18,10 @@ data class User(
     val latitude: Double? = null,
     val longitude: Double? = null,
     val detecaoImpactos: Boolean = false,
-    val criadoEm: Long = 0L,
-    val validadoEm: Long? = null,
+    @Contextual @ServerTimestamp val criadoEm: Timestamp? = null,
+    @Contextual val validadoEm: Timestamp? = null,
     val validadoPor: String? = null,
 
     val mfaCode: String? = null,
-    val mfaExpiresAt: Long? = null
+    @Contextual val mfaExpiresAt: Timestamp? = null
 )

@@ -6,6 +6,8 @@ import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.tasks.await
 import pt.isec.amov.a2024136885.cityfix.data.model.User
 import pt.isec.amov.a2024136885.cityfix.util.NotificationHelper
+import com.google.firebase.Timestamp
+import java.util.Date
 import kotlin.random.Random
 
 class AuthRepository(
@@ -26,9 +28,18 @@ class AuthRepository(
             val authResult = auth.signInWithEmailAndPassword(email.trim(), password).await()
             val uid = authResult.user?.uid ?: return Result.failure(Exception("Utilizador não encontrado."))
 
+            // Verificar se o utilizador está validado (se é Munícipe pendente, barrar entrada)
+            val doc = firestore.collection("utilizadores").document(uid).get().await()
+            val user = doc.toObject(User::class.java)
+
+            if (user != null && !user.validado) {
+                auth.signOut() // Terminar logo a sessão porque não pode entrar
+                return Result.failure(Exception("A sua conta encontra-se pendente de validação pelos serviços camarários."))
+            }
+
             // Gerar código de 6 dígitos
             val mfaCode = String.format("%06d", Random.nextInt(100000, 999999))
-            val expiresAt = System.currentTimeMillis() + (5 * 60 * 1000) // 5 minutos
+            val expiresAt = Timestamp(Date(System.currentTimeMillis() + (5 * 60 * 1000))) // 5 minutos
 
             // Guardar temporariamente no Firestore
             firestore.collection("utilizadores")
@@ -58,9 +69,9 @@ class AuthRepository(
             val user = doc.toObject(User::class.java)
                 ?: return Result.failure(Exception("Utilizador não encontrado no sistema."))
 
-            val currentTime = System.currentTimeMillis()
+            val currentTime = Timestamp.now()
 
-            if (user.mfaExpiresAt == null || currentTime > user.mfaExpiresAt) {
+            if (user.mfaExpiresAt == null || currentTime.compareTo(user.mfaExpiresAt) > 0) {
                 return Result.failure(Exception("O código de validação expirou. Faça login novamente."))
             }
 
@@ -113,7 +124,7 @@ class AuthRepository(
                 latitude = latitude,
                 longitude = longitude,
                 detecaoImpactos = detecaoImpactos,
-                criadoEm = System.currentTimeMillis()
+                criadoEm = null
             )
 
             firestore.collection("utilizadores")
@@ -154,7 +165,7 @@ class AuthRepository(
                 telefone = telefone.trim(),
                 perfil = "operador",
                 validado = true, // Operador fica logo ativo
-                criadoEm = System.currentTimeMillis()
+                criadoEm = null
             )
 
             firestore.collection("utilizadores")
