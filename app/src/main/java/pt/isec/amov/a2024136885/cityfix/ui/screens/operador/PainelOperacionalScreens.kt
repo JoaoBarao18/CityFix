@@ -118,7 +118,7 @@ internal fun DetalheOperacionalScreen(
         DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT)
     }
     val historico = remember(detalhe.historico, dataHora) {
-        detalhe.historico.map { EventoHistoricoUi(it.estado, dataHora.format(Date(it.instante))) }
+        detalhe.historico.map { EventoHistoricoUi(it.estado, it.instante?.toDate()?.let { d -> dataHora.format(d) } ?: "") }
     }
     BackHandler(enabled = estado.aGuardar) {}
 

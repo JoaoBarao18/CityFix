@@ -45,5 +45,7 @@ data class Ocorrencia(
     @Contextual
     val resolvidoEm: Timestamp? = null,
     @Contextual
-    val encerradoEm: Timestamp? = null
+    val encerradoEm: Timestamp? = null,
+    @Contextual
+    val proximidadeEm: Timestamp? = null
 )

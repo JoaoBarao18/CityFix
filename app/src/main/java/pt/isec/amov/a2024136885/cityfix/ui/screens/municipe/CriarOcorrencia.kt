@@ -17,8 +17,12 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuAnchorType
@@ -70,8 +74,10 @@ import pt.isec.amov.a2024136885.cityfix.ui.viewmodel.situacoesOcorrencia
 fun CriarOcrrencia(
     listaCategoria: List<Category>,
     onSubmeter: (DadosAberturaOcorrencia) -> Unit,
+    onVoltar: (() -> Unit)? = null,
     mensagemSubmissao: Int? = null,
-    podeSubmeter: Boolean = true
+    podeSubmeter: Boolean = true,
+    modifier: Modifier = Modifier
 ) {
     var descricao by rememberSaveable() { mutableStateOf("") }
     var categoriaID by rememberSaveable() { mutableStateOf<String?>(null)}
@@ -176,7 +182,7 @@ fun CriarOcrrencia(
         validacao = validacao,
         onSubmeter = {
             validacaoPedida = true
-            formularioViewModel.prepararSubmissao(
+            val dados = formularioViewModel.prepararSubmissao(
                 context = context,
                 categorias = listaCategoria,
                 categoriaId = categoriaID,
@@ -185,23 +191,14 @@ fun CriarOcrrencia(
                 publica = publica,
                 latitude = latitude,
                 longitude = longitude,
-                fotoPath = fotoPath,
-                videoPath = videoPath
+                fotoPath = captura.fotoPath,
+                videoPath = captura.videoPath
             )
-            // Simula um callback dummy se for necessário 
-            onSubmeter(
-                DadosAberturaOcorrencia(
-                    categoriaId = categoriaID ?: "",
-                    situacao = situacao ?: "",
-                    descricao = descricao,
-                    publica = publica,
-                    latitude = latitude ?: 0.0,
-                    longitude = longitude ?: 0.0,
-                    fotoPath = fotoPath,
-                    videoPath = videoPath
-                )
-            )
+            if (dados != null) {
+                onSubmeter(dados)
+            }
         },
+        onVoltar = onVoltar,
         mensagemSubmissao = mensagemSubmissao,
         podeSubmeter = podeSubmeter,
         descricao = descricao,
@@ -234,10 +231,12 @@ fun CriarOcrrencia(
         fotoPath = captura.fotoPath,
         erroFoto = captura.erroFoto,
         onTirarFoto = captura.onTirarFoto,
+        onEscolherGaleria = captura.onEscolherGaleria,
         videoPath = captura.videoPath,
         erroVideo = captura.erroVideo,
         aGuardarVideo = captura.aGuardar,
-        onGravarVideo = captura.onGravarVideo
+        onGravarVideo = captura.onGravarVideo,
+        modifier = modifier
     )
 }
 
@@ -259,12 +258,14 @@ fun CriarOcorrenciaContent(
     fotoPath: String?,
     erroFoto: Int?,
     onTirarFoto: () -> Unit,
+    onEscolherGaleria: () -> Unit = {},
     videoPath: String?,
     erroVideo: Int?,
     aGuardarVideo: Boolean,
     onGravarVideo: () -> Unit,
     validacao: ErrosCriarOcorrencia?,
     onSubmeter: () -> Unit,
+    onVoltar: (() -> Unit)? = null,
     mensagemSubmissao: Int?,
     modifier: Modifier = Modifier,
     podeSubmeter: Boolean = true
@@ -276,11 +277,24 @@ fun CriarOcorrenciaContent(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        //titulo
-        Text(
-            text = stringResource(R.string.create_report_title),
-            style = MaterialTheme.typography.headlineSmall
-        )
+        //titulo com botão de voltar
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            if (onVoltar != null) {
+                IconButton(onClick = onVoltar) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = stringResource(R.string.public_report_back)
+                    )
+                }
+            }
+            Text(
+                text = stringResource(R.string.create_report_title),
+                style = MaterialTheme.typography.headlineSmall
+            )
+        }
 
         CampoCategoria(
             listaCategoria = listacategoria,
@@ -408,6 +422,12 @@ fun CriarOcorrenciaContent(
                             else R.string.report_replace_photo
                         )
                     )
+                }
+                OutlinedButton(
+                    onClick = onEscolherGaleria,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Escolher da Galeria")
                 }
                 if (erroFoto != null) {
                     Text(

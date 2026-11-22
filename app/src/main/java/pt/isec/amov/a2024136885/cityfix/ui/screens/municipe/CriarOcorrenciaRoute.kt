@@ -1,5 +1,6 @@
 package pt.isec.amov.a2024136885.cityfix.ui.screens.municipe
 
+import android.widget.Toast
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -25,7 +26,10 @@ import pt.isec.amov.a2024136885.cityfix.data.model.Category
 import pt.isec.amov.a2024136885.cityfix.ui.viewmodel.CriarOcorrenciaViewModel
 
 @Composable
-internal fun CriarOcorrenciaRoute(autorId: String) {
+internal fun CriarOcorrenciaRoute(
+    autorId: String,
+    onVoltar: () -> Unit = {}
+) {
     val formularioViewModel: CriarOcorrenciaViewModel = viewModel()
     val resultadoCategorias by produceState<Result<List<Category>>?>(
         initialValue = null,
@@ -66,7 +70,7 @@ internal fun CriarOcorrenciaRoute(autorId: String) {
         ) {
             CircularProgressIndicator()
         }
-        else -> Column {
+        else -> Column(modifier = Modifier.fillMaxSize()) {
             if (categorias.isNullOrEmpty()) {
                 Text(
                     text = stringResource(R.string.report_categories_empty),
@@ -76,9 +80,15 @@ internal fun CriarOcorrenciaRoute(autorId: String) {
             }
             CriarOcrrencia(
                 listaCategoria = categorias.orEmpty(),
-                onSubmeter = { dados -> formularioViewModel.submeter(context, autorId, dados) },
+                onSubmeter = { dados ->
+                    formularioViewModel.submeter(context, autorId, dados)
+                    Toast.makeText(context, "Ocorrência enviada com sucesso!", Toast.LENGTH_LONG).show()
+                    onVoltar()
+                },
+                onVoltar = onVoltar,
                 mensagemSubmissao = mensagemSubmissao,
-                podeSubmeter = podeSubmeter
+                podeSubmeter = podeSubmeter,
+                modifier = Modifier.weight(1f)
             )
         }
     }

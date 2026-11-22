@@ -8,7 +8,13 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.net.Uri
+import android.os.Build
 import android.provider.MediaStore
+import android.provider.Settings
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import android.util.Log
 import android.webkit.MimeTypeMap
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -38,6 +44,7 @@ internal class CapturaMultimedia(
     val aGuardarFoto: Boolean,
     val aGuardarVideo: Boolean,
     val onTirarFoto: () -> Unit,
+    val onEscolherGaleria: () -> Unit,
     val onGravarVideo: () -> Unit
 ) {
     val aGuardar: Boolean get() = aGuardarFoto || aGuardarVideo
@@ -54,8 +61,65 @@ internal fun rememberCapturaMultimedia(): CapturaMultimedia {
     var erroVideo by rememberSaveable() { mutableStateOf<Int?>(null) }
     var permissaoParaVideo by rememberSaveable() { mutableStateOf(false) }
     var aGuardarVideo by remember() { mutableStateOf(false) }
+    var showGaleriaPermissionDialog by remember { mutableStateOf(false) }
 
     // Mesmo contrato do exemplo AMOVStorageDemo: devolve uma fotografia em miniatura.
+    val galleryLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            aGuardarFoto = true
+            scope.launch {
+                try {
+                    val ficheiro = withContext(Dispatchers.IO) { guardarImagemFromUri(context, uri) }
+                    fotoPath = ficheiro
+                    erroFoto = null
+                } catch (e: Exception) {
+                    Log.e("CityFixFoto", "Falha ao ler foto da galeria", e)
+                    erroFoto = R.string.report_photo_error
+                } finally {
+                    aGuardarFoto = false
+                }
+            }
+        }
+    }
+
+    val permissaoGaleria = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { concedida ->
+        if (concedida) {
+            galleryLauncher.launch("image/*")
+        } else {
+            showGaleriaPermissionDialog = true
+        }
+    }
+
+    if (showGaleriaPermissionDialog) {
+        AlertDialog(
+            onDismissRequest = { showGaleriaPermissionDialog = false },
+            title = { Text("Permissão da Galeria Necessária") },
+            text = { Text("Para selecionar fotografias para o relatório de ocorrência, a aplicação necessita da permissão de acesso às imagens do dispositivo.") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showGaleriaPermissionDialog = false
+                        val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                            data = Uri.fromParts("package", context.packageName, null)
+                        }
+                        context.startActivity(intent)
+                    }
+                ) {
+                    Text("Abrir Definições")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showGaleriaPermissionDialog = false }) {
+                    Text("Cancelar")
+                }
+            }
+        )
+    }
+
     val cameraLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.TakePicturePreview()
     ) { bitmap: Bitmap? ->
@@ -154,11 +218,39 @@ internal fun rememberCapturaMultimedia(): CapturaMultimedia {
             erroFoto = null
             pedirCamera(paraVideo = false)
         },
+        onEscolherGaleria = {
+            erroFoto = null
+            val permissao = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                Manifest.permission.READ_MEDIA_IMAGES
+            } else {
+                Manifest.permission.READ_EXTERNAL_STORAGE
+            }
+
+            val concedida = ContextCompat.checkSelfPermission(context, permissao) ==
+                PackageManager.PERMISSION_GRANTED
+
+            if (concedida) {
+                galleryLauncher.launch("image/*")
+            } else {
+                permissaoGaleria.launch(permissao)
+            }
+        },
         onGravarVideo = {
             erroVideo = null
             pedirCamera(paraVideo = true)
         }
     )
+}
+
+private fun guardarImagemFromUri(context: Context, uri: Uri): String {
+    val resolver = context.contentResolver
+    val ficheiro = File(context.filesDir, "foto_${UUID.randomUUID()}.jpg")
+    resolver.openInputStream(uri)?.use { input ->
+        ficheiro.outputStream().use { output ->
+            input.copyTo(output)
+        }
+    } ?: throw IOException("Não foi possível abrir a imagem da galeria.")
+    return ficheiro.absolutePath
 }
 
 // Baseado no saveImageToInternalStorage do AMOVStorageDemo.

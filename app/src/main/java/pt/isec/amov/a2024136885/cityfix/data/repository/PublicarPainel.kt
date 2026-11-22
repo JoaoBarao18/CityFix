@@ -23,14 +23,16 @@ internal fun atualizarPainelPublico(
 ) {
     val ativa = ocorrencia.estado in estadosAtivosOcorrencia
     val resolvidaEm = ocorrencia.resolvidoEm
+    val criadoEmMs = ocorrencia.criadoEm?.toDate()?.time ?: 0L
+    val resolvidaEmMs = resolvidaEm?.toDate()?.time ?: 0L
     val reparada = ocorrencia.estado in listOf("resolvido", "encerrado") &&
-        ocorrencia.criadoEm > 0 && resolvidaEm != null && resolvidaEm >= ocorrencia.criadoEm
+        criadoEmMs > 0L && resolvidaEmMs >= criadoEmMs
 
     val contribuicao = mapOf(
         "total" to 1L,
         "ativas" to if (ativa) 1L else 0L,
         "reparadas" to if (reparada) 1L else 0L,
-        "duracaoTotalMs" to if (reparada) resolvidaEm - ocorrencia.criadoEm else 0L
+        "duracaoTotalMs" to if (reparada) (resolvidaEmMs - criadoEmMs) else 0L
     )
     val diferencas = contribuicao.mapValues { (campo, valor) ->
         valor - (anterior.getLong(campo) ?: 0L)

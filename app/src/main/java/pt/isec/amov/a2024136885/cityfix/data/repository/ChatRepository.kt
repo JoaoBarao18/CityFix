@@ -10,6 +10,7 @@ import kotlinx.coroutines.tasks.await
 import pt.isec.amov.a2024136885.cityfix.data.model.Message
 import pt.isec.amov.a2024136885.cityfix.data.model.Ocorrencia
 import pt.isec.amov.a2024136885.cityfix.data.model.User
+import pt.isec.amov.a2024136885.cityfix.data.model.toUserSafe
 
 class ChatRepository(
     private val firestore: FirebaseFirestore = FirebaseFirestore.getInstance(),
@@ -62,7 +63,7 @@ class ChatRepository(
 
             // 2. Obter dados do perfil do remetente
             val userDoc = firestore.collection("utilizadores").document(uid).get().await()
-            val userProfile = userDoc.toObject(User::class.java)
+            val userProfile = userDoc.toUserSafe()
             val autorNome = userProfile?.nome?.ifBlank { "Utilizador" } ?: "Utilizador"
             val perfil = userProfile?.perfil ?: "municipe"
 

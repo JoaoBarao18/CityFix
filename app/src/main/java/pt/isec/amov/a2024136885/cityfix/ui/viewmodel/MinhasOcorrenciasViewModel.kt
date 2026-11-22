@@ -60,8 +60,13 @@ internal class MinhasOcorrenciasViewModel : ViewModel() {
             Result.failure(erro)
         }
 
-    private suspend fun obterUrl(caminho: String?) =
-        caminho?.let { tentar { repositorio.urlAnexo(it) } }
+    private suspend fun obterUrl(caminho: String?): String? {
+        if (caminho.isNullOrBlank()) return null
+        if (caminho.startsWith("http://") || caminho.startsWith("https://") || caminho.startsWith("file://") || caminho.startsWith("content://")) {
+            return caminho
+        }
+        return tentar { repositorio.urlAnexo(caminho) }
+    }
 
     private suspend fun <T> tentar(acao: suspend () -> T): T? = try {
         withTimeoutOrNull(2_000) { acao() }

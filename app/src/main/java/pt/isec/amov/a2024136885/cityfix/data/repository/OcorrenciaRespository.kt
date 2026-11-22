@@ -89,7 +89,7 @@ internal class OcorrenciaRespository(
                 } else {
                     val anterior = destino.ocorrencia()
                     val juntar = anterior.autorId != ocorrencia.autorId
-                    val agora = System.currentTimeMillis()
+                    val agora = com.google.firebase.Timestamp.now()
                     val alteracoes = mutableMapOf<String, Any>(
                         "ficheiros" to FieldValue.arrayUnion(*ocorrencia.ficheiros.toTypedArray()),
                         "atualizadoEm" to agora

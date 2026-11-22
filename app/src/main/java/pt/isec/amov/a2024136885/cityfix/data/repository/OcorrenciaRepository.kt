@@ -309,6 +309,27 @@ class OcorrenciaRepository(
         awaitClose { listener.remove() }
     }
 
+    fun getOcorrenciasPublicasFlow(): Flow<Result<List<Ocorrencia>>> = callbackFlow {
+        val listener = ocorrenciasCollection
+            .whereEqualTo("publica", true)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    trySend(Result.failure(error))
+                    return@addSnapshotListener
+                }
+                val list = snapshot?.documents?.mapNotNull { doc ->
+                    try {
+                        doc.toObject(Ocorrencia::class.java)?.copy(id = doc.id)
+                    } catch (e: Exception) {
+                        null
+                    }
+                } ?: emptyList()
+                trySend(Result.success(list))
+            }
+
+        awaitClose { listener.remove() }
+    }
+
     /**
      * Escuta em tempo real uma ocorrência específica.
      */

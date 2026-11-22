@@ -7,6 +7,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
 import pt.isec.amov.a2024136885.cityfix.data.model.User
+import pt.isec.amov.a2024136885.cityfix.data.model.toUserSafe
 
 class UserRepository(
     private val firestore: FirebaseFirestore = FirebaseFirestore.getInstance()
@@ -61,11 +62,7 @@ class UserRepository(
                     return@addSnapshotListener
                 }
                 val users = snapshot?.documents?.mapNotNull { doc ->
-                    try {
-                        doc.toObject(User::class.java)?.copy(uid = doc.id)
-                    } catch (e: Exception) {
-                        null
-                    }
+                    doc.toUserSafe()
                 } ?: emptyList()
                 trySend(Result.success(users))
             }

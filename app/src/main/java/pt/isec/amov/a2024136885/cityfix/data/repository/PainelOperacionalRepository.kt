@@ -15,7 +15,7 @@ import pt.isec.amov.a2024136885.cityfix.data.model.Ocorrencia
 import pt.isec.amov.a2024136885.cityfix.data.model.User
 import java.io.File
 
-internal data class EventoOperacional(val estado: String, val instante: Long)
+internal data class EventoOperacional(val estado: String, val instante: Timestamp?)
 
 internal data class DetalheOperacional(
     val ocorrencia: Ocorrencia,
@@ -53,15 +53,15 @@ internal class PainelOperacionalRepository(
         }
         val eventos = ref.collection("historico").get().await().documents.mapNotNull { evento ->
             val estado = evento.getString("estado") ?: return@mapNotNull null
-            val instante = evento.milisegundos("dataHora") ?: return@mapNotNull null
+            val instante = evento.getTimestamp("dataHora") ?: evento.getTimestamp("data")
             EventoOperacional(estado, instante)
         }
         val historico = buildList {
-            if (ocorrencia.criadoEm > 0 && eventos.none { it.estado == "aberto" }) {
+            if (ocorrencia.criadoEm != null && eventos.none { it.estado == "aberto" }) {
                 add(EventoOperacional("aberto", ocorrencia.criadoEm))
             }
             addAll(eventos)
-        }.sortedBy { it.instante }
+        }.sortedBy { it.instante?.toDate()?.time ?: 0L }
         return DetalheOperacional(ocorrencia, autor, historico)
     }
 
@@ -107,7 +107,7 @@ internal class PainelOperacionalRepository(
         val perfilRef = firestore.collection("utilizadores").document(operadorId)
         val ref = firestore.collection("ocorrencias").document(id)
         val evento = ref.collection("historico").document()
-        val agora = System.currentTimeMillis()
+        val agora = Timestamp.now()
         return firestore.runTransaction { transacao ->
             check(transacao.get(perfilRef).operadorValidado())
             val atual = transacao.get(ref).ocorrencia()
@@ -235,9 +235,9 @@ internal fun DocumentSnapshot.ocorrencia(): Ocorrencia {
         morada = getString("morada"),
         ficheiros = anexos("ficheiros"),
         comprovativosResolucao = anexos("comprovativosResolucao"),
-        criadoEm = milisegundos("criadoEm") ?: 0,
-        atualizadoEm = milisegundos("atualizadoEm") ?: 0,
-        resolvidoEm = milisegundos("resolvidoEm"),
-        proximidadeEm = milisegundos("proximidadeEm")
+        criadoEm = getTimestamp("criadoEm"),
+        atualizadoEm = getTimestamp("atualizadoEm"),
+        resolvidoEm = getTimestamp("resolvidoEm"),
+        encerradoEm = getTimestamp("encerradoEm")
     )
 }

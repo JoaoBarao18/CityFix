@@ -24,8 +24,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.produceState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -184,7 +188,7 @@ fun PainelPublicoContent(
     onPerfilClick: () -> Unit = {},
     onValidateUsersClick: () -> Unit = {},
     onManageCategoriesClick: () -> Unit = {},
-    onLogoutClick: () -> Unit = {}
+    onLogoutClick: () -> Unit = {},
     onCriarOcorrencia: (() -> Unit)? = null,
     onMinhasOcorrencias: (() -> Unit)? = null,
     mediaReparacao: String = "—",
@@ -195,6 +199,13 @@ fun PainelPublicoContent(
     mostrarNotaVisitante: Boolean = true,
     carregarMiniatura: (suspend (String) -> String?)? = null
 ) {
+    var paginaAtual by remember { mutableIntStateOf(0) }
+    val itensPorPagina = 5
+    val totalPaginas = maxOf(1, (ocorrencias.size + itensPorPagina - 1) / itensPorPagina)
+    val inicio = paginaAtual * itensPorPagina
+    val fim = minOf(inicio + itensPorPagina, ocorrencias.size)
+    val ocorrenciasPaginadas = if (inicio < ocorrencias.size) ocorrencias.subList(inicio, fim) else emptyList()
+
     Box(modifier = Modifier.fillMaxSize()) {
         LazyColumn(
             modifier = Modifier
@@ -360,9 +371,38 @@ fun PainelPublicoContent(
         if (aCarregar || onTentarNovamente != null || ocorrencias.isEmpty()) {
             item { EstadoListaPublica(aCarregar, onTentarNovamente) }
         }
-        items(ocorrencias, key = { it.id }) { ocorrencia ->
+        items(ocorrenciasPaginadas, key = { it.id }) { ocorrencia ->
             CartaoOcorrenciaPublica(ocorrencia, carregarMiniatura) {
                 onAbrirOcorrencia(ocorrencia.id)
+            }
+        }
+        if (ocorrencias.size > itensPorPagina) {
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    OutlinedButton(
+                        onClick = { if (paginaAtual > 0) paginaAtual-- },
+                        enabled = paginaAtual > 0
+                    ) {
+                        Text("Anterior")
+                    }
+
+                    Text(
+                        text = "Página ${paginaAtual + 1} de $totalPaginas",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    OutlinedButton(
+                        onClick = { if (paginaAtual < totalPaginas - 1) paginaAtual++ },
+                        enabled = paginaAtual < totalPaginas - 1
+                    ) {
+                        Text("Seguinte")
+                    }
+                }
             }
         }
     }

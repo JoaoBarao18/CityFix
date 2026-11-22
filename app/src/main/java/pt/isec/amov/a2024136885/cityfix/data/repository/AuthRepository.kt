@@ -5,6 +5,7 @@ import com.google.firebase.auth.FirebaseAuthUserCollisionException
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.tasks.await
 import pt.isec.amov.a2024136885.cityfix.data.model.User
+import pt.isec.amov.a2024136885.cityfix.data.model.toUserSafe
 import pt.isec.amov.a2024136885.cityfix.util.NotificationHelper
 import com.google.firebase.Timestamp
 import java.util.Date
@@ -30,7 +31,7 @@ class AuthRepository(
 
             // Verificar se o utilizador está validado (se é Munícipe pendente, barrar entrada)
             val doc = firestore.collection("utilizadores").document(uid).get().await()
-            val user = doc.toObject(User::class.java)
+            val user = doc.toUserSafe()
 
             if (user != null && !user.validado) {
                 auth.signOut() // Terminar logo a sessão porque não pode entrar
@@ -66,7 +67,7 @@ class AuthRepository(
     suspend fun verifyMfaCode(uid: String, inputCode: String): Result<User> {
         return try {
             val doc = firestore.collection("utilizadores").document(uid).get().await()
-            val user = doc.toObject(User::class.java)
+            val user = doc.toUserSafe()
                 ?: return Result.failure(Exception("Utilizador não encontrado no sistema."))
 
             val currentTime = Timestamp.now()
@@ -185,7 +186,7 @@ class AuthRepository(
         val uid = currentUserId ?: return Result.success(null)
         return try {
             val snapshot = firestore.collection("utilizadores").document(uid).get().await()
-            Result.success(snapshot.toObject(User::class.java))
+            Result.success(snapshot.toUserSafe())
         } catch (e: Exception) {
             Result.failure(e)
         }

@@ -47,12 +47,24 @@ import androidx.navigation.toRoute
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import pt.isec.amov.a2024136885.cityfix.R
+import pt.isec.amov.a2024136885.cityfix.data.model.Category
 import pt.isec.amov.a2024136885.cityfix.data.repository.AuthRepository
+import androidx.compose.runtime.produceState
+import pt.isec.amov.a2024136885.cityfix.data.repository.CategoryRepository
+import pt.isec.amov.a2024136885.cityfix.data.repository.OcorrenciaRepository
+import pt.isec.amov.a2024136885.cityfix.ui.screens.publico.OcorrenciaPublicaUi
 import pt.isec.amov.a2024136885.cityfix.data.repository.UserRepository
 import pt.isec.amov.a2024136885.cityfix.domain.location.estaDentroRaio
 import pt.isec.amov.a2024136885.cityfix.ui.screens.auth.LoginScreen
 import pt.isec.amov.a2024136885.cityfix.ui.screens.auth.MfaChallengeScreen
 import pt.isec.amov.a2024136885.cityfix.ui.screens.auth.RegisterScreen
+import pt.isec.amov.a2024136885.cityfix.ui.screens.municipe.CriarOcorrenciaRoute
+import pt.isec.amov.a2024136885.cityfix.ui.screens.municipe.DetalheMinhaOcorrenciaRoute
+import pt.isec.amov.a2024136885.cityfix.ui.screens.municipe.MinhasOcorrenciasRoute
+import pt.isec.amov.a2024136885.cityfix.ui.screens.municipe.SugestaoImpacto
+import pt.isec.amov.a2024136885.cityfix.ui.screens.operador.DetalheOperacionalScreen
+import pt.isec.amov.a2024136885.cityfix.ui.screens.operador.PainelOperacionalScreen
+import pt.isec.amov.a2024136885.cityfix.ui.screens.operator.ManageCategoriesScreen
 import pt.isec.amov.a2024136885.cityfix.ui.screens.operator.ValidateUsersScreen
 import pt.isec.amov.a2024136885.cityfix.ui.screens.profile.ProfileEditScreen
 import pt.isec.amov.a2024136885.cityfix.ui.screens.publico.DetalheOcorrenciaPublicaContent
@@ -61,70 +73,68 @@ import pt.isec.amov.a2024136885.cityfix.ui.screens.publico.PainelPublicoContent
 import pt.isec.amov.a2024136885.cityfix.ui.screens.publico.ocorrenciasExemplo
 import pt.isec.amov.a2024136885.cityfix.ui.viewmodel.AuthViewModel
 import pt.isec.amov.a2024136885.cityfix.ui.viewmodel.AuthViewModelFactory
-import pt.isec.amov.a2024136885.cityfix.ui.viewmodel.OperatorViewModel
-import pt.isec.amov.a2024136885.cityfix.ui.viewmodel.OperatorViewModelFactory
-import pt.isec.amov.a2024136885.cityfix.ui.screens.operator.ManageCategoriesScreen
 import pt.isec.amov.a2024136885.cityfix.ui.viewmodel.CategoryViewModel
 import pt.isec.amov.a2024136885.cityfix.ui.viewmodel.CategoryViewModelFactory
-import pt.isec.amov.a2024136885.cityfix.data.repository.CategoryRepository
+import pt.isec.amov.a2024136885.cityfix.ui.viewmodel.OperatorViewModel
+import pt.isec.amov.a2024136885.cityfix.ui.viewmodel.OperatorViewModelFactory
+import pt.isec.amov.a2024136885.cityfix.ui.viewmodel.PainelOperacionalViewModel
 import pt.isec.amov.a2024136885.cityfix.util.NotificationHelper
 import kotlin.math.round
-import pt.isec.amov.a2024136885.cityfix.ui.screens.operador.DetalheOperacionalScreen
-import pt.isec.amov.a2024136885.cityfix.ui.screens.operador.PainelOperacionalScreen
-import pt.isec.amov.a2024136885.cityfix.ui.screens.municipe.CriarOcorrenciaRoute
-import pt.isec.amov.a2024136885.cityfix.ui.screens.municipe.DetalheMinhaOcorrenciaRoute
-import pt.isec.amov.a2024136885.cityfix.ui.screens.municipe.MinhasOcorrenciasRoute
-import pt.isec.amov.a2024136885.cityfix.ui.screens.municipe.SugestaoImpacto
-import pt.isec.amov.a2024136885.cityfix.ui.screens.profile.ProfileEditScreen
-import pt.isec.amov.a2024136885.cityfix.ui.viewmodel.PainelOperacionalViewModel
-import pt.isec.amov.a2024136885.cityfix.ui.viewmodel.AuthViewModel
-import pt.isec.amov.a2024136885.cityfix.ui.viewmodel.AuthViewModelFactory
-import pt.isec.amov.a2024136885.cityfix.util.NotificationHelper
-import pt.isec.amov.a2024136885.cityfix.data.repository.OcorrenciaRespository
-import kotlinx.coroutines.flow.catch
-import pt.isec.amov.a2024136885.cityfix.ui.screens.publico.DetalhePublicoRoute
-import pt.isec.amov.a2024136885.cityfix.ui.screens.publico.ListaPublicaRoute
-import pt.isec.amov.a2024136885.cityfix.ui.screens.publico.PainelPublicoRoute
-import pt.isec.amov.a2024136885.cityfix.ui.viewmodel.PainelPublicoViewModel
 
 @Composable
 fun AppNavHost() {
    val navController = rememberNavController()
    val context = LocalContext.current
-   val painelPublicoViewModel: PainelPublicoViewModel = viewModel()
+   val ocorrenciasPublicas = ocorrenciasExemplo(context.packageName)
    var aCheckarLocalizacao by remember { mutableStateOf(false) }
    var mensagemVisitor by remember { mutableStateOf<Int?>(null) }
    val localCliente = remember(context) {
       LocationServices.getFusedLocationProviderClient(context)
    }
 
-   // Setup do AuthViewModel preservando os teus repositórios
+   // Setup dos ViewModels
    val notificationHelper = remember(context) { NotificationHelper(context) }
    val authRepository = remember(notificationHelper) { AuthRepository(notificationHelper = notificationHelper) }
    val userRepository = remember { UserRepository() }
+   val categoryRepository = remember { CategoryRepository() }
    val authViewModel: AuthViewModel = viewModel(
       factory = AuthViewModelFactory(authRepository, userRepository)
    )
    val authUiState by authViewModel.uiState.collectAsState()
+
+   val categoriesState by produceState<List<Category>>(initialValue = emptyList()) {
+      categoryRepository.getAllCategoriesFlow().collect { result ->
+         result.onSuccess { value = it }
+      }
+   }
+
+   val ocorrenciaRepository = remember { OcorrenciaRepository(context) }
+   val ocorrenciasFirestoreState by produceState<List<OcorrenciaPublicaUi>>(initialValue = emptyList(), key1 = categoriesState) {
+      ocorrenciaRepository.getOcorrenciasPublicasFlow().collect { result ->
+         result.onSuccess { lista ->
+            value = lista.map { o ->
+               val nomeCat = categoriesState.firstOrNull { c -> c.id == o.categoriaId }?.nome?.ifBlank { null } ?: o.categoriaId
+               OcorrenciaPublicaUi(
+                  id = o.id,
+                  categoria = nomeCat,
+                  situation = o.situacao,
+                  status = o.estado,
+                  pathImg = o.ficheiros.firstOrNull { it.tipo == "foto" }?.let { it.thumbnailPath ?: it.storagePath },
+                  descricao = o.descricao,
+                  latitude = o.latitude,
+                  longitude = o.longitude
+               )
+            }
+         }
+      }
+   }
+   val listaFinalOcorrencias = if (ocorrenciasFirestoreState.isNotEmpty()) ocorrenciasFirestoreState else ocorrenciasPublicas
+
    val operador = authUiState.currentUser?.takeIf {
       authUiState.isLoginSuccessful && it.perfil == "operador" && it.validado
    }
    val municipe = authUiState.currentUser?.takeIf {
       authUiState.isLoginSuccessful && it.perfil == "municipe" && it.validado
-   }
-
-   LaunchedEffect(municipe?.uid) {
-      val uid = municipe?.uid ?: return@LaunchedEffect
-      OcorrenciaRespository().observarMinhas(uid)
-         .catch { Log.w("CityFixProximidade", "Falha ao observar avisos", it) }
-         .collect { ocorrencias ->
-            ocorrencias.forEach { ocorrencia ->
-               val instante = ocorrencia.proximidadeEm
-               if (ocorrencia.estado == "em_resolucao" && instante != null) {
-                  notificationHelper.mostrarProximidadeSeNova(uid, ocorrencia.id, instante)
-               }
-            }
-         }
    }
 
    // Transição automática para o ecrã de desafio MFA quando gerado o código
@@ -151,7 +161,6 @@ fun AppNavHost() {
    val operatorUiState by operatorViewModel.uiState.collectAsState()
 
    // Setup do CategoryViewModel
-   val categoryRepository = remember { CategoryRepository() }
    val categoryViewModel: CategoryViewModel = viewModel(
       factory = CategoryViewModelFactory(categoryRepository)
    )
@@ -221,6 +230,7 @@ fun AppNavHost() {
                mensagemVisitor = mensagemVisitor,
                aChecarLocalizacao = aCheckarLocalizacao,
                onContinueAsVisitor = {
+                  authViewModel.logout() // Limpa qualquer sessão ativa antes de entrar como visitante
                   mensagemVisitor = null
                   locationpermission.launch(
                      arrayOf(
@@ -314,23 +324,29 @@ fun AppNavHost() {
          }
 
          composable<Route.ProfileEdit> {
-            LaunchedEffect(Unit) {
-               authViewModel.fetchCurrentUser()
-            }
-            ProfileEditScreen(
-               uiState = authUiState,
-               onSaveClick = { novoTelefone, novosImpactos ->
-                  authViewModel.updateProfile(
-                     telefone = novoTelefone,
-                     fotoUrl = null,
-                     impactos = novosImpactos
-                  )
-               },
-               onBackClick = {
-                  authViewModel.clearMessages()
+            if (authUiState.isLoginSuccessful && authUiState.currentUser != null) {
+               LaunchedEffect(Unit) {
+                  authViewModel.fetchCurrentUser()
+               }
+               ProfileEditScreen(
+                  uiState = authUiState,
+                  onSaveClick = { novoTelefone, novaFotoUrl, novosImpactos ->
+                     authViewModel.updateProfile(
+                        telefone = novoTelefone,
+                        fotoUrl = novaFotoUrl,
+                        impactos = novosImpactos
+                     )
+                  },
+                  onBackClick = {
+                     authViewModel.clearMessages()
+                     navController.popBackStack()
+                  }
+               )
+            } else {
+               LaunchedEffect(Unit) {
                   navController.popBackStack()
                }
-            )
+            }
          }
 
          composable<Route.ValidateUsers> {
@@ -353,40 +369,6 @@ fun AppNavHost() {
             )
          }
 
-         composable<Route.OcorrenciasPublicas> {
-            PainelPublicoContent(
-               ocorrencias = ocorrenciasPublicas,
-               currentUser = authUiState.currentUser,
-               onVerTodas = { navController.navigate(Route.ListarOcorrenciasPublicas) },
-               onAbrirOcorrencia = { id -> navController.navigate(Route.DetalheOcorrenciaPublica(id)) },
-               onPerfilClick = { navController.navigate(Route.ProfileEdit) },
-               onValidateUsersClick = { navController.navigate(Route.ValidateUsers) },
-               onManageCategoriesClick = { navController.navigate(Route.ManageCategories) },
-               onLogoutClick = {
-                  if (authUiState.currentUser != null) {
-                     authViewModel.logout()
-                  }
-                  navController.navigate(Route.Entrada) {
-                     popUpTo(Route.Entrada) { inclusive = true }
-                  }
-               }
-            )
-         }
-
-         composable<Route.ListarOcorrenciasPublicas> {
-            ListaOcorrenciasPublicas(
-               ocorrencias = ocorrenciasPublicas,
-               onAbrirOcorrencia = { id ->
-                  navController.navigate(Route.DetalheOcorrenciaPublica(id))
-               },
-               onVoltar = { navController.popBackStack() }
-            )
-         }
-
-         composable<Route.DetalheOcorrenciaPublica> { entrada ->
-            val rota = entrada.toRoute<Route.DetalheOcorrenciaPublica>()
-            val ocorrencia = ocorrenciasPublicas.firstOrNull {
-               it.id == rota.id
          composable<Route.PainelOperacional> {
             if (operador != null) {
                val painelViewModel: PainelOperacionalViewModel = viewModel()
@@ -415,14 +397,30 @@ fun AppNavHost() {
             }
          }
 
-         composable <Route.OcorrenciasPublicas>{
-            PainelPublicoRoute(
-               vm = painelPublicoViewModel,
+         composable<Route.OcorrenciasPublicas> {
+            LaunchedEffect(Unit) {
+               if (authUiState.isLoginSuccessful) {
+                  authViewModel.fetchCurrentUser()
+               }
+            }
+            PainelPublicoContent(
+               ocorrencias = listaFinalOcorrencias,
+               currentUser = if (authUiState.isLoginSuccessful) authUiState.currentUser else null,
                onVerTodas = { navController.navigate(Route.ListarOcorrenciasPublicas) },
-               onAbrir = { id -> navController.navigate(Route.DetalheOcorrenciaPublica(id)) },
-               onCriar = municipe?.let { { navController.navigate(Route.CriarOcorrencia) } },
-               onMinhas = municipe?.let { { navController.navigate(Route.MinhasOcorrencias) } },
-               visitante = !authUiState.isLoginSuccessful
+               onAbrirOcorrencia = { id -> navController.navigate(Route.DetalheOcorrenciaPublica(id)) },
+               onPerfilClick = { navController.navigate(Route.ProfileEdit) },
+               onValidateUsersClick = { navController.navigate(Route.ValidateUsers) },
+               onManageCategoriesClick = { navController.navigate(Route.ManageCategories) },
+               onLogoutClick = {
+                  if (authUiState.currentUser != null) {
+                     authViewModel.logout()
+                  }
+                  navController.navigate(Route.Entrada) {
+                     popUpTo(Route.Entrada) { inclusive = true }
+                  }
+               },
+               onCriarOcorrencia = municipe?.let { { navController.navigate(Route.CriarOcorrencia) } },
+               onMinhasOcorrencias = municipe?.let { { navController.navigate(Route.MinhasOcorrencias) } }
             )
             SugestaoImpacto(
                detImpactosAtiva = municipe?.detecaoImpactos == true,
@@ -444,17 +442,6 @@ fun AppNavHost() {
             }
          }
 
-            if (ocorrencia != null) {
-               DetalheOcorrenciaPublicaContent(
-                  categoria = ocorrencia.categoria,
-                  situacao = ocorrencia.situation,
-                  status = ocorrencia.status,
-                  descricao = ocorrencia.descricao,
-                  latitudeAproximada = round(ocorrencia.latitude * 10) / 10,
-                  longitudeAproximada = round(ocorrencia.longitude * 10) / 10,
-                  pathImg = ocorrencia.pathImg,
-                  pathVideo = ocorrencia.pathVideo,
-                  onVoltar = { navController.popBackStack() },
          composable<Route.DetalheMinhaOcorrencia> { entrada ->
             if (municipe != null) {
                DetalheMinhaOcorrenciaRoute(
@@ -469,7 +456,10 @@ fun AppNavHost() {
 
          composable<Route.CriarOcorrencia> {
             if (municipe != null) {
-               CriarOcorrenciaRoute(autorId = municipe.uid)
+               CriarOcorrenciaRoute(
+                  autorId = municipe.uid,
+                  onVoltar = { navController.popBackStack() }
+               )
             } else {
                LaunchedEffect(Unit) {
                   navController.popBackStack()
@@ -478,19 +468,34 @@ fun AppNavHost() {
          }
 
          composable<Route.ListarOcorrenciasPublicas> {
-            ListaPublicaRoute(
-               vm = painelPublicoViewModel,
-               onAbrir = { id -> navController.navigate(Route.DetalheOcorrenciaPublica(id)) },
+            ListaOcorrenciasPublicas(
+               ocorrencias = listaFinalOcorrencias,
+               onAbrirOcorrencia = { id ->
+                  navController.navigate(Route.DetalheOcorrenciaPublica(id))
+               },
                onVoltar = { navController.popBackStack() }
             )
          }
 
          composable<Route.DetalheOcorrenciaPublica> { entrada ->
-            DetalhePublicoRoute(
-               vm = painelPublicoViewModel,
-               id = entrada.toRoute<Route.DetalheOcorrenciaPublica>().id,
-               onVoltar = { navController.popBackStack() }
-            )
+            val rota = entrada.toRoute<Route.DetalheOcorrenciaPublica>()
+            val ocorrencia = listaFinalOcorrencias.firstOrNull {
+               it.id == rota.id
+            }
+
+            if (ocorrencia != null) {
+               DetalheOcorrenciaPublicaContent(
+                  categoria = ocorrencia.categoria,
+                  situacao = ocorrencia.situation,
+                  status = ocorrencia.status,
+                  descricao = ocorrencia.descricao,
+                  latitudeAproximada = round((ocorrencia.latitude ?: 0.0) * 10) / 10,
+                  longitudeAproximada = round((ocorrencia.longitude ?: 0.0) * 10) / 10,
+                  pathImg = ocorrencia.pathImg,
+                  pathVideo = ocorrencia.pathVideo,
+                  onVoltar = { navController.popBackStack() }
+               )
+            }
          }
       }
    }

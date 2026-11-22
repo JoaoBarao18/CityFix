@@ -1,27 +1,37 @@
 package pt.isec.amov.a2024136885.cityfix.ui.screens.profile
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil3.compose.AsyncImage
 import pt.isec.amov.a2024136885.cityfix.ui.viewmodel.AuthUiState
 
 @Composable
 fun ProfileEditScreen(
     uiState: AuthUiState,
-    onSaveClick: (String, Boolean?) -> Unit,
+    onSaveClick: (String, String?, Boolean?) -> Unit,
     onBackClick: () -> Unit
 ) {
     val user = uiState.currentUser
@@ -29,7 +39,16 @@ fun ProfileEditScreen(
     val primaryGreen = MaterialTheme.colorScheme.primary
 
     var telefone by remember(user) { mutableStateOf(user?.telefone ?: "") }
+    var fotoUrl by remember(user) { mutableStateOf(user?.fotoUrl) }
     var impactos by remember(user) { mutableStateOf(user?.detecaoImpactos ?: false) }
+
+    val galleryLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            fotoUrl = uri.toString()
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -42,7 +61,42 @@ fun ProfileEditScreen(
         Text("Edit Profile", fontSize = 28.sp, fontWeight = FontWeight.Bold, color = primaryGreen)
         Text("Immutable fields are locked by municipal policy", color = Color.Gray, style = MaterialTheme.typography.bodySmall)
 
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(20.dp))
+
+        // Avatar Circular Clicável para escolher foto
+        Box(
+            modifier = Modifier
+                .size(96.dp)
+                .align(Alignment.CenterHorizontally)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.surfaceVariant)
+                .clickable { galleryLauncher.launch("image/*") },
+            contentAlignment = Alignment.Center
+        ) {
+            if (!fotoUrl.isNullOrBlank()) {
+                AsyncImage(
+                    model = fotoUrl,
+                    contentDescription = "Foto de Perfil",
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
+            } else {
+                Icon(
+                    imageVector = Icons.Default.AccountCircle,
+                    contentDescription = "Foto de Perfil",
+                    tint = primaryGreen,
+                    modifier = Modifier.size(64.dp)
+                )
+            }
+        }
+        Text(
+            text = "Toque para alterar a foto de perfil",
+            style = MaterialTheme.typography.bodySmall,
+            color = Color.Gray,
+            modifier = Modifier
+                .align(Alignment.CenterHorizontally)
+                .padding(top = 6.dp, bottom = 16.dp)
+        )
 
         // Campo Bloqueado: Nome
         OutlinedTextField(
@@ -127,7 +181,7 @@ fun ProfileEditScreen(
         Spacer(modifier = Modifier.height(32.dp))
 
         Button(
-            onClick = { onSaveClick(telefone, if (!isOperador) impactos else null) },
+            onClick = { onSaveClick(telefone, fotoUrl, if (!isOperador) impactos else null) },
             enabled = !uiState.isLoading,
             shape = RoundedCornerShape(16.dp),
             colors = ButtonDefaults.buttonColors(containerColor = primaryGreen),
