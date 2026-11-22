@@ -4,6 +4,7 @@ import android.app.Application
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.FirebaseFirestoreSettings
 import com.google.firebase.firestore.persistentCacheSettings
+import org.maplibre.android.MapLibre
 
 class CityFixApp : Application() {
     override fun onCreate() {
@@ -14,5 +15,8 @@ class CityFixApp : Application() {
             .build()
 
         FirebaseFirestore.getInstance().firestoreSettings = settings
+
+        MapLibre.getInstance(this)
+
     }
 }
