@@ -27,5 +27,6 @@ data class Ocorrencia(
     val comprovativosResolucao: List<MediaAttachment> = emptyList(),
     val criadoEm: Long = 0L,
     val atualizadoEm: Long = 0L,
-    val resolvidoEm: Long? = null
+    val resolvidoEm: Long? = null,
+    val proximidadeEm: Long? = null
 )

@@ -5,16 +5,14 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
 import androidx.core.content.ContextCompat
-import coil3.Extras
 import com.google.android.gms.location.Geofence
 import com.google.android.gms.location.GeofencingRequest
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.tasks.Task
 import com.google.android.gms.tasks.Tasks
-import kotlinx.serialization.Contextual
-import org.maplibre.compose.location.Location
 
 internal fun criarGeofenceOcorrencia(
     ocorrenciaID: String,
@@ -32,6 +30,7 @@ internal fun criarGeofenceOcorrencia(
 internal fun registarGeofenceOcorrencia(
         context: Context,
         ocorrenciaID: String,
+        operadorId: String,
         lat: Double,
         long: Double
     ): Task<Void> {
@@ -56,7 +55,9 @@ internal fun registarGeofenceOcorrencia(
             PendingIntent.FLAG_UPDATE_CURRENT
         }
 
-    val intent = Intent(context, GeofenceBroadcastReceiver::class.java)
+    val intent = Intent(context, GeofenceBroadcastReceiver::class.java).apply {
+        data = Uri.fromParts(ESQUEMA_GEOFENCE, operadorId, null)
+    }
     val pendingIntent = PendingIntent.getBroadcast(context, 0, intent, flags)
 
     return LocationServices.getGeofencingClient(context).addGeofences(asked, pendingIntent)

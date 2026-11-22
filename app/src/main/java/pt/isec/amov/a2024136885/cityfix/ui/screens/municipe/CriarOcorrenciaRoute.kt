@@ -40,11 +40,14 @@ internal fun CriarOcorrenciaRoute(autorId: String) {
     val trabalhos by remember(context, id) {
         id?.let { formularioViewModel.observarEnvio(context, it) } ?: flowOf(emptyList())
     }.collectAsStateWithLifecycle(initialValue = emptyList())
-    val estadoEnvio = trabalhos.firstOrNull()?.state
+    val trabalho = trabalhos.firstOrNull()
+    val estadoEnvio = trabalho?.state
     val mensagemSubmissao = agendamento ?: when (estadoEnvio) {
         WorkInfo.State.ENQUEUED, WorkInfo.State.BLOCKED -> R.string.report_submission_queued
         WorkInfo.State.RUNNING -> R.string.report_submission_sending
-        WorkInfo.State.SUCCEEDED -> R.string.report_submission_success
+        WorkInfo.State.SUCCEEDED -> if (trabalho.outputData.getBoolean("agrupada", false)) {
+            R.string.report_submission_grouped
+        } else R.string.report_submission_success
         WorkInfo.State.FAILED, WorkInfo.State.CANCELLED -> R.string.report_submission_unavailable
         null -> null
     }

@@ -25,15 +25,21 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.tooling.preview.Preview
 import coil3.compose.AsyncImage
 import pt.isec.amov.a2024136885.cityfix.R
+import pt.isec.amov.a2024136885.cityfix.ui.theme.CityFIxTheme
 
 @Composable
 fun CartaoEstatistica(
@@ -152,9 +158,10 @@ data class OcorrenciaPublicaUi(
     val pathImg: String? = null,
     val pathVideo: String? = null,
     val descricao: String,
-    val latitude: Double,
-    val longitude: Double,
-    val enderecoOcorrencia: String? = null
+    val latitude: Double?,
+    val longitude: Double?,
+    val enderecoOcorrencia: String? = null,
+    val miniaturaStorage: String? = null
 )
 
 @Composable
@@ -162,7 +169,15 @@ fun PainelPublicoContent(
     ocorrencias: List<OcorrenciaPublicaUi>,
     onVerTodas: () -> Unit = {},
     onAbrirOcorrencia: (String) -> Unit = {},
-    onCriarOcorrencia: (() -> Unit)? = null
+    onCriarOcorrencia: (() -> Unit)? = null,
+    onMinhasOcorrencias: (() -> Unit)? = null,
+    mediaReparacao: String = "—",
+    totalOcorrencias: String = "—",
+    percentagemAtivas: String = "—",
+    aCarregar: Boolean = false,
+    onTentarNovamente: (() -> Unit)? = null,
+    mostrarNotaVisitante: Boolean = true,
+    carregarMiniatura: (suspend (String) -> String?)? = null
 ) {
     LazyColumn(
         modifier = Modifier
@@ -186,6 +201,13 @@ fun PainelPublicoContent(
                 }
             }
         }
+        if (onMinhasOcorrencias != null) {
+            item {
+                TextButton(onClick = onMinhasOcorrencias, modifier = Modifier.fillMaxWidth()) {
+                    Text(stringResource(R.string.my_reports_title))
+                }
+            }
+        }
         item {
             Surface(
                 modifier = Modifier.fillMaxWidth(),
@@ -202,10 +224,12 @@ fun PainelPublicoContent(
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.SemiBold
                     )
-                    Text(
-                        text = stringResource(R.string.visitor_radius_note),
-                        style = MaterialTheme.typography.bodyMedium
-                    )
+                    if (mostrarNotaVisitante) {
+                        Text(
+                            text = stringResource(R.string.visitor_radius_note),
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
                 }
             }
         }
@@ -216,17 +240,17 @@ fun PainelPublicoContent(
             ) {
                 CartaoEstatistica(
                     titulo = stringResource(R.string.public_dashboard_average_time),
-                    valor = stringResource(R.string.public_dashboard_average_value),
+                    valor = mediaReparacao,
                     modifier = Modifier.weight(1f).fillMaxHeight()
                 )
                 CartaoEstatistica(
                     titulo = stringResource(R.string.public_dashboard_reports),
-                    valor = "1 248",
+                    valor = totalOcorrencias,
                     modifier = Modifier.weight(1f).fillMaxHeight()
                 )
                 CartaoEstatistica(
                     titulo = stringResource(R.string.public_dashboard_active),
-                    valor = "18%",
+                    valor = percentagemAtivas,
                     modifier = Modifier.weight(1f).fillMaxHeight()
                 )
             }
@@ -248,56 +272,44 @@ fun PainelPublicoContent(
                 }
             }
         }
-        if (ocorrencias.isEmpty()) {
-            item {
-                Text(
-                    text = stringResource(R.string.public_reports_empty),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
+        if (aCarregar || onTentarNovamente != null || ocorrencias.isEmpty()) {
+            item { EstadoListaPublica(aCarregar, onTentarNovamente) }
         }
-        items(ocorrencias) { ocorrencia ->
-            Ocorrencia(
-                situation = ocorrencia.situation,
-                categoria = ocorrencia.categoria,
-                status = ocorrencia.status,
-                modifier = Modifier.clip(MaterialTheme.shapes.large).clickable{
-                    onAbrirOcorrencia(ocorrencia.id)
-                },
-                pathImg = ocorrencia.pathImg,
-            )
+        items(ocorrencias, key = { it.id }) { ocorrencia ->
+            CartaoOcorrenciaPublica(ocorrencia, carregarMiniatura) {
+                onAbrirOcorrencia(ocorrencia.id)
+            }
         }
     }
 }
 
+@Composable
+internal fun CartaoOcorrenciaPublica(
+    ocorrencia: OcorrenciaPublicaUi,
+    carregarMiniatura: (suspend (String) -> String?)?,
+    onAbrir: () -> Unit
+) {
+    val miniatura by produceState(ocorrencia.pathImg, ocorrencia.id, ocorrencia.miniaturaStorage, ocorrencia.pathImg) {
+        value = ocorrencia.pathImg ?: ocorrencia.miniaturaStorage?.let { carregarMiniatura?.invoke(it) }
+    }
+    Ocorrencia(
+        situation = ocorrencia.situation,
+        categoria = ocorrencia.categoria,
+        status = ocorrencia.status,
+        pathImg = miniatura,
+        modifier = Modifier.clip(MaterialTheme.shapes.large).clickable(role = Role.Button, onClick = onAbrir)
+    )
+}
 
-//
-//@Preview(showBackground = true)
-//@Composable
-//private fun CartaoEstatisitcaPreview(){
-//    CityFIxTheme(dynamicColor = false) {
-//        val packageName = LocalContext.current.packageName
-//        //CartaoEstatistica(titulo = "Tempo médio", valor = "2,4 dias")
-//        //PainelPublicoContent()
-//        //Ocorrencia("Avaria", "Iluminçaao","Aberto", pathImg = "android.resource://$packageName/${R.drawable.img_welcome}")
-//
-//        PainelPublicoContent(
-//            ocorrencias = listOf(
-//                OcorrenciaPublicaUi(
-//                    id = "ocorrencia_001",
-//                    categoria = "Iluminação pública",
-//                    situation = "Avaria",
-//                    status = "Aberto",
-//                    pathImg = "android.resource://$packageName/${R.drawable.img_welcome}",
-//                ),
-//                OcorrenciaPublicaUi(
-//                    id = "ocorrencia_002",
-//                    categoria = "Vias públicas",
-//                    situation = "Dano",
-//                    status = "Em resolução",
-//                )
-//            )
-//        )
-//    }
-//}
+@Preview(showBackground = true, locale = "pt-rPT")
+@Composable
+private fun PainelPublicoPreview() {
+    CityFIxTheme(dynamicColor = false) {
+        PainelPublicoContent(
+            ocorrencias = ocorrenciasExemplo(LocalContext.current.packageName),
+            mediaReparacao = "2,4 dias",
+            totalOcorrencias = "1 248",
+            percentagemAtivas = "18%"
+        )
+    }
+}

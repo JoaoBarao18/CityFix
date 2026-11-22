@@ -25,6 +25,8 @@ internal data class PainelOperacionalUiState(
     val ocorrencias: List<Ocorrencia> = emptyList(),
     val aCarregarLista: Boolean = true,
     val erroLista: Boolean = false,
+    val aAtualizarPainelPublico: Boolean = false,
+    val mensagemPainelPublico: Int? = null,
     val detalhe: DetalheOperacional? = null,
     val aCarregarDetalhe: Boolean = true,
     val erroDetalhe: Boolean = false,
@@ -53,6 +55,23 @@ internal class PainelOperacionalViewModel : ViewModel() {
                 if (erro is CancellationException) throw erro
                 Log.w("PainelOperacional", "Falha ao obter ocorrências", erro)
                 _estado.update { it.copy(aCarregarLista = false, erroLista = true) }
+            }
+        }
+    }
+
+    fun atualizarPainelPublico(operadorId: String) {
+        if (_estado.value.aAtualizarPainelPublico) return
+        _estado.update { it.copy(aAtualizarPainelPublico = true, mensagemPainelPublico = null) }
+        viewModelScope.launch {
+            try {
+                repositorio.atualizarPainelPublico(operadorId)
+                _estado.update { it.copy(mensagemPainelPublico = R.string.public_refresh_done) }
+            } catch (erro: Exception) {
+                if (erro is CancellationException) throw erro
+                Log.w("PainelOperacional", "Falha ao atualizar os dados públicos", erro)
+                _estado.update { it.copy(mensagemPainelPublico = R.string.public_refresh_error) }
+            } finally {
+                _estado.update { it.copy(aAtualizarPainelPublico = false) }
             }
         }
     }
@@ -146,7 +165,7 @@ internal class PainelOperacionalViewModel : ViewModel() {
     suspend fun urlAnexo(operadorId: String, caminho: String): String =
         repositorio.urlAnexo(operadorId, caminho)
 
-    fun registarProximidade(context: Context, ocorrencia: Ocorrencia) {
+    fun registarProximidade(context: Context, operadorId: String, ocorrencia: Ocorrencia) {
         if (ocorrencia.estado != "em_resolucao" || ocorrencia.id in _estado.value.geofencesAtivas) return
         val latitude = ocorrencia.latitude
         val longitude = ocorrencia.longitude
@@ -161,14 +180,20 @@ internal class PainelOperacionalViewModel : ViewModel() {
                 if (ocorrencia.id in _estado.value.geofencesAtivas ||
                     _estado.value.detalhe?.ocorrencia?.takeIf { it.id == ocorrencia.id }?.estado != "em_resolucao"
                 ) return@withLock
-                registarPerimetro(context, ocorrencia.id, latitude, longitude)
+                registarPerimetro(context, ocorrencia.id, operadorId, latitude, longitude)
             }
         }
     }
 
-    private suspend fun registarPerimetro(context: Context, id: String, latitude: Double, longitude: Double) {
+    private suspend fun registarPerimetro(
+        context: Context,
+        id: String,
+        operadorId: String,
+        latitude: Double,
+        longitude: Double
+    ) {
         try {
-            registarGeofenceOcorrencia(context, id, latitude, longitude).await()
+            registarGeofenceOcorrencia(context, id, operadorId, latitude, longitude).await()
             _estado.update {
                 it.copy(
                     mensagemProximidade = R.string.operational_geofence_active,

@@ -13,6 +13,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Card
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -31,21 +32,18 @@ import androidx.compose.ui.unit.dp
 import pt.isec.amov.a2024136885.cityfix.R
 import pt.isec.amov.a2024136885.cityfix.data.model.Ocorrencia
 import pt.isec.amov.a2024136885.cityfix.ui.theme.CityFIxTheme
+import pt.isec.amov.a2024136885.cityfix.ui.viewmodel.estadosOcorrencia
 import pt.isec.amov.a2024136885.cityfix.ui.viewmodel.situacoesOcorrencia
 import pt.isec.amov.a2024136885.cityfix.data.model.User
 
-private val Estado = mapOf(
-    "aberto" to R.string.report_state_open,
-    "pedido_informacoes" to R.string.report_state_info_requested,
-    "em_resolucao" to R.string.report_state_in_progress,
-    "resolvido" to R.string.report_state_resolved,
-    "encerrado" to R.string.report_state_closed
-)
 
 @Composable
 fun PainelOperacionalContent(
     ocorrencias: List<Ocorrencia>,
-    onAbrirOcorrencia: (String)-> Unit
+    onAbrirOcorrencia: (String) -> Unit,
+    onAtualizarPainelPublico: (() -> Unit)? = null,
+    aAtualizarPainelPublico: Boolean = false,
+    mensagemPainelPublico: Int? = null
 ){
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -59,6 +57,16 @@ fun PainelOperacionalContent(
                 color = MaterialTheme.colorScheme.primary
             )
         }
+        if (onAtualizarPainelPublico != null && ocorrencias.isNotEmpty()) {
+            item {
+                TextButton(onClick = onAtualizarPainelPublico, enabled = !aAtualizarPainelPublico) {
+                    Text(stringResource(if (aAtualizarPainelPublico) R.string.public_refresh_pending else R.string.public_refresh))
+                }
+                if (mensagemPainelPublico != null) {
+                    Text(stringResource(mensagemPainelPublico))
+                }
+            }
+        }
         if(ocorrencias.isEmpty()){
             item{
                 Text(
@@ -69,7 +77,7 @@ fun PainelOperacionalContent(
         items(ocorrencias, key = { it.id }) { ocorrencia->
             val sit = situacoesOcorrencia[ocorrencia.situacao]
                 ?.let {stringResource(it)} ?:ocorrencia.situacao
-            val status = Estado[ocorrencia.estado]
+            val status = estadosOcorrencia[ocorrencia.estado]
                 ?.let {stringResource(it)} ?:ocorrencia.estado
 
             Card(
@@ -118,7 +126,7 @@ fun DetalheOcoorenciaOperadorContent(
 ){
     val situacao = situacoesOcorrencia[ocorrencia.situacao]
         ?.let { stringResource(it) } ?: ocorrencia.situacao
-    val estado = Estado[ocorrencia.estado]
+    val estado = estadosOcorrencia[ocorrencia.estado]
         ?.let { stringResource(it) } ?: ocorrencia.estado
     val latitude = ocorrencia.latitude
     val longitude = ocorrencia.longitude
@@ -187,7 +195,7 @@ fun DetalheOcoorenciaOperadorContent(
 
         historico.forEach {
             evt ->
-            val evtEstado = Estado[evt.estado]
+            val evtEstado = estadosOcorrencia[evt.estado]
                 ?.let {stringResource(it)} ?: evt.estado
 
             Column(){

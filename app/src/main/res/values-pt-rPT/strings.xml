@@ -21,7 +21,12 @@
     <string name="public_report_no_photo">Sem foto</string>
     <string name="public_dashboard_title">Vista pública</string>
     <string name="public_dashboard_average_time">Tempo médio</string>
-    <string name="public_dashboard_average_value">2,4 dias</string>
+    <plurals name="public_dashboard_days">
+        <item quantity="one">%1$s dia</item>
+        <item quantity="other">%1$s dias</item>
+    </plurals>
+    <string name="public_reports_load_error">Não foi possível carregar as ocorrências públicas.</string>
+    <string name="public_report_unavailable">Esta ocorrência pública já não está disponível.</string>
     <string name="public_dashboard_reports">Ocorrências</string>
     <string name="public_dashboard_active">Ativas</string>
     <string name="public_dashboard_in_your_city">Na sua cidade</string>
@@ -101,4 +106,13 @@
     <string name="report_submission_queued">Ocorrência em espera para envio.</string>
     <string name="report_submission_sending">A enviar a ocorrência…</string>
     <string name="report_submission_success">Ocorrência submetida.</string>
+    <string name="my_reports_load_error">Não foi possível carregar as tuas ocorrências.</string>
+    <string name="report_submission_grouped">Ocorrência adicionada a um grupo existente. Consulta-a em Minhas ocorrências.</string>
+    <string name="proximity_title">Equipa municipal na área</string>
+    <string name="proximity_notification">A equipa municipal entrou na zona desta ocorrência.</string>
+    <string name="proximity_channel">Proximidade da equipa</string>
+    <string name="public_refresh">Atualizar painel público</string>
+    <string name="public_refresh_pending">A atualizar o painel público…</string>
+    <string name="public_refresh_done">Painel público atualizado.</string>
+    <string name="public_refresh_error">Não foi possível atualizar o painel público. Tenta novamente.</string>
 </resources>

@@ -121,6 +121,10 @@ internal class PainelOperacionalRepository(
             val resolucaoPermitida = destino == "resolvido" &&
                 atual.estado == "em_resolucao" && comprovativos.isNotEmpty()
             check(inicioPermitido || resolucaoPermitida)
+            val contribuicao = transacao.get(firestore.referenciaContribuicao(id))
+            val categoria = if (atual.publica && destino in estadosAtivosOcorrencia && atual.categoriaId.isNotBlank()) {
+                transacao.get(firestore.collection("categorias").document(atual.categoriaId)).getString("nome").orEmpty()
+            } else ""
             val alteracoes = mutableMapOf<String, Any>("estado" to destino, "atualizadoEm" to agora)
             val novosComprovativos = (atual.comprovativosResolucao + comprovativos)
                 .distinctBy { it.storagePath }
@@ -138,13 +142,36 @@ internal class PainelOperacionalRepository(
                     "operadorId" to operadorId
                 )
             )
-            atual.copy(
+            val atualizada = atual.copy(
                 estado = destino,
                 atualizadoEm = agora,
                 resolvidoEm = if (resolucaoPermitida) agora else atual.resolvidoEm,
                 comprovativosResolucao = novosComprovativos
             )
+            atualizarPainelPublico(firestore, transacao, atualizada, categoria, contribuicao)
+            atualizada
         }.await()
+    }
+
+    suspend fun atualizarPainelPublico(operadorId: String) {
+        verificarOperador(operadorId)
+        val referencias = firestore.collection("ocorrencias").get().await().documents.map { it.reference }
+        val perfil = firestore.collection("utilizadores").document(operadorId)
+        for (ref in referencias) {
+            firestore.runTransaction { transacao ->
+                check(transacao.get(perfil).operadorValidado())
+                val guardada = transacao.get(ref)
+                if (guardada.exists()) {
+                    val ocorrencia = guardada.ocorrencia()
+                    val contribuicao = transacao.get(firestore.referenciaContribuicao(ref.id))
+                    val categoria = if (ocorrencia.publica && ocorrencia.categoriaId.isNotBlank()) {
+                        transacao.get(firestore.collection("categorias").document(ocorrencia.categoriaId))
+                            .getString("nome").orEmpty()
+                    } else ""
+                    atualizarPainelPublico(firestore, transacao, ocorrencia, categoria, contribuicao)
+                }
+            }.await()
+        }
     }
 
     private suspend fun verificarOperador(id: String) {
@@ -192,7 +219,7 @@ private fun DocumentSnapshot.anexos(campo: String): List<MediaAttachment> =
         )
     }
 
-private fun DocumentSnapshot.ocorrencia(): Ocorrencia {
+internal fun DocumentSnapshot.ocorrencia(): Ocorrencia {
     check(exists())
     return Ocorrencia(
         id = id,
@@ -210,6 +237,7 @@ private fun DocumentSnapshot.ocorrencia(): Ocorrencia {
         comprovativosResolucao = anexos("comprovativosResolucao"),
         criadoEm = milisegundos("criadoEm") ?: 0,
         atualizadoEm = milisegundos("atualizadoEm") ?: 0,
-        resolvidoEm = milisegundos("resolvidoEm")
+        resolvidoEm = milisegundos("resolvidoEm"),
+        proximidadeEm = milisegundos("proximidadeEm")
     )
 }

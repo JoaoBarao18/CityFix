@@ -21,7 +21,12 @@
     <string name="public_report_no_photo">No photo</string>
     <string name="public_dashboard_title">Public view</string>
     <string name="public_dashboard_average_time">Average time</string>
-    <string name="public_dashboard_average_value">2.4 days</string>
+    <plurals name="public_dashboard_days">
+        <item quantity="one">%1$s day</item>
+        <item quantity="other">%1$s days</item>
+    </plurals>
+    <string name="public_reports_load_error">Could not load public reports.</string>
+    <string name="public_report_unavailable">This public report is no longer available.</string>
     <string name="public_dashboard_reports">Reports</string>
     <string name="public_dashboard_active">Active</string>
     <string name="public_dashboard_in_your_city">In your city</string>
@@ -101,4 +106,13 @@
     <string name="report_submission_queued">Report queued for upload.</string>
     <string name="report_submission_sending">Sending report…</string>
     <string name="report_submission_success">Report submitted.</string>
+    <string name="my_reports_load_error">Could not load your reports.</string>
+    <string name="report_submission_grouped">Report added to an existing group. See it in My reports.</string>
+    <string name="proximity_title">Municipal team nearby</string>
+    <string name="proximity_notification">The municipal team has entered the area of this report.</string>
+    <string name="proximity_channel">Team proximity</string>
+    <string name="public_refresh">Update public dashboard</string>
+    <string name="public_refresh_pending">Updating public dashboard…</string>
+    <string name="public_refresh_done">Public dashboard updated.</string>
+    <string name="public_refresh_error">Could not update the public dashboard. Try again.</string>
 </resources>

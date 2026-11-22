@@ -5,11 +5,24 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.produceState
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.foundation.lazy.items
 import androidx.compose.ui.draw.clip
@@ -17,9 +30,17 @@ import pt.isec.amov.a2024136885.cityfix.ui.screens.publico.Ocorrencia
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import pt.isec.amov.a2024136885.cityfix.R
 import androidx.compose.ui.tooling.preview.Preview
+import pt.isec.amov.a2024136885.cityfix.ui.components.AvisoProximidade
+import pt.isec.amov.a2024136885.cityfix.ui.screens.publico.DetalheOcorrenciaPublicaContent
 import pt.isec.amov.a2024136885.cityfix.ui.theme.CityFIxTheme
+import pt.isec.amov.a2024136885.cityfix.ui.viewmodel.MinhaOcorrencia
+import pt.isec.amov.a2024136885.cityfix.ui.viewmodel.MinhasOcorrenciasViewModel
+import pt.isec.amov.a2024136885.cityfix.ui.viewmodel.estadosOcorrencia
+import pt.isec.amov.a2024136885.cityfix.ui.viewmodel.situacoesOcorrencia
+import kotlin.math.round
 
 data class OcorrnenciaPessoalUI(
     val id: String,
@@ -27,13 +48,17 @@ data class OcorrnenciaPessoalUI(
     val categoria: String,
     val status: String,
     val pathImg: String? = null,
-    val emGrupo: Boolean = false
+    val emGrupo: Boolean = false,
+    val temAvisoProximidade: Boolean = false
 )
 
 @Composable
 fun minhasOcorrenciasContent(
     ocorrencias: List<OcorrnenciaPessoalUI>,
-    onAbrirOcorencia: (String) -> Unit
+    onAbrirOcorencia: (String) -> Unit,
+    onVoltar: (() -> Unit)? = null,
+    aCarregar: Boolean = false,
+    onTentarNovamente: (() -> Unit)? = null
 ) {
     LazyColumn(modifier = Modifier
         .fillMaxSize()
@@ -41,16 +66,14 @@ fun minhasOcorrenciasContent(
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        item{
-            Text(
-                text = stringResource(R.string.my_reports_title),
-                style = MaterialTheme.typography.headlineSmall,
-                color = MaterialTheme.colorScheme.primary
-            )
+        item {
+            CabecalhoMinhasOcorrencias(onVoltar)
         }
 
-        if(ocorrencias.isEmpty()){
-            item {
+        when {
+            aCarregar -> item { CircularProgressIndicator() }
+            onTentarNovamente != null -> item { ErroMinhasOcorrencias(onTentarNovamente) }
+            ocorrencias.isEmpty() -> item {
                 Text(
                     text = stringResource(R.string.my_reports_empty),
                     style = MaterialTheme.typography.bodyMedium,
@@ -71,6 +94,7 @@ fun minhasOcorrenciasContent(
                             onAbrirOcorencia(ocorrencia.id)
                         }
                 )
+                if (ocorrencia.temAvisoProximidade) AvisoProximidade()
                 if(ocorrencia.emGrupo){
                     Text(
                         text = stringResource(R.string.my_reports_group),
@@ -82,6 +106,108 @@ fun minhasOcorrenciasContent(
         }
     }
 }
+
+@Composable
+internal fun MinhasOcorrenciasRoute(
+    autorId: String,
+    onAbrir: (String) -> Unit,
+    onVoltar: () -> Unit
+) {
+    val vm: MinhasOcorrenciasViewModel = viewModel()
+    var tentativa by remember { mutableIntStateOf(0) }
+    val resultado by produceState<Result<List<MinhaOcorrencia>>?>(null, autorId, tentativa) {
+        value = null
+        vm.observar(autorId).collect { value = it }
+    }
+    val ocorrencias = resultado?.getOrNull().orEmpty().map { minha ->
+        OcorrnenciaPessoalUI(
+            id = minha.dados.id,
+            situacao = situacaoPessoal(minha),
+            categoria = categoriaPessoal(minha),
+            status = estadoPessoal(minha),
+            pathImg = minha.imagem,
+            emGrupo = minha.emGrupo,
+            temAvisoProximidade = minha.dados.estado == "em_resolucao" && minha.dados.proximidadeEm != null
+        )
+    }
+    minhasOcorrenciasContent(
+        ocorrencias = ocorrencias,
+        onAbrirOcorencia = onAbrir,
+        onVoltar = onVoltar,
+        aCarregar = resultado == null,
+        onTentarNovamente = if (resultado?.isFailure == true) ({ tentativa++ }) else null
+    )
+}
+
+@Composable
+internal fun DetalheMinhaOcorrenciaRoute(autorId: String, id: String, onVoltar: () -> Unit) {
+    val vm: MinhasOcorrenciasViewModel = viewModel()
+    var tentativa by remember { mutableIntStateOf(0) }
+    val resultado by produceState<Result<MinhaOcorrencia>?>(null, autorId, id, tentativa) {
+        value = null
+        value = vm.carregarDetalhe(autorId, id)
+    }
+    val minha = resultado?.getOrNull()
+    if (minha != null) {
+        val dados = minha.dados
+        DetalheOcorrenciaPublicaContent(
+            categoria = categoriaPessoal(minha),
+            situacao = situacaoPessoal(minha),
+            status = estadoPessoal(minha),
+            descricao = dados.descricao,
+            latitudeAproximada = dados.latitude?.let { round(it * 10) / 10 },
+            longitudeAproximada = dados.longitude?.let { round(it * 10) / 10 },
+            pathImg = minha.imagem,
+            pathVideo = minha.video,
+            onVoltar = onVoltar,
+            mostrarAvisoProximidade = dados.estado == "em_resolucao" && dados.proximidadeEm != null
+        )
+    } else {
+        minhasOcorrenciasContent(
+            ocorrencias = emptyList(),
+            onAbrirOcorencia = {},
+            onVoltar = onVoltar,
+            aCarregar = resultado == null,
+            onTentarNovamente = if (resultado?.isFailure == true) ({ tentativa++ }) else null
+        )
+    }
+}
+
+@Composable
+private fun CabecalhoMinhasOcorrencias(onVoltar: (() -> Unit)?) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        if (onVoltar != null) {
+            IconButton(onClick = onVoltar) {
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.public_report_back))
+            }
+        }
+        Text(
+            text = stringResource(R.string.my_reports_title),
+            style = MaterialTheme.typography.headlineSmall,
+            color = MaterialTheme.colorScheme.primary
+        )
+    }
+}
+
+@Composable
+private fun ErroMinhasOcorrencias(onTentarNovamente: () -> Unit) {
+    Column {
+        Text(stringResource(R.string.my_reports_load_error), color = MaterialTheme.colorScheme.error)
+        TextButton(onClick = onTentarNovamente) { Text(stringResource(R.string.operational_retry)) }
+    }
+}
+
+@Composable
+private fun situacaoPessoal(minha: MinhaOcorrencia) =
+    situacoesOcorrencia[minha.dados.situacao]?.let { stringResource(it) } ?: minha.dados.situacao
+
+@Composable
+private fun estadoPessoal(minha: MinhaOcorrencia) =
+    estadosOcorrencia[minha.dados.estado]?.let { stringResource(it) } ?: minha.dados.estado
+
+@Composable
+private fun categoriaPessoal(minha: MinhaOcorrencia) =
+    minha.categoria ?: stringResource(R.string.report_category)
 
 @Preview(showBackground = true, locale = "pt-rPT")
 @Composable

@@ -1,7 +1,6 @@
 package pt.isec.amov.a2024136885.cityfix.ui.screens.publico
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -19,9 +18,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import pt.isec.amov.a2024136885.cityfix.R
 
@@ -29,7 +26,10 @@ import pt.isec.amov.a2024136885.cityfix.R
 fun ListaOcorrenciasPublicas(
     ocorrencias: List<OcorrenciaPublicaUi>,
     onAbrirOcorrencia: (String) -> Unit = {},
-    onVoltar: () -> Unit = {}
+    onVoltar: () -> Unit = {},
+    aCarregar: Boolean = false,
+    onTentarNovamente: (() -> Unit)? = null,
+    carregarMiniatura: (suspend (String) -> String?)? = null
 ) {
     Column(
         modifier = Modifier
@@ -59,26 +59,13 @@ fun ListaOcorrenciasPublicas(
             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            if (ocorrencias.isEmpty()) {
-                item {
-                    Text(
-                        text = stringResource(R.string.public_reports_empty),
-                        modifier = Modifier.padding(vertical = 12.dp),
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
+            if (aCarregar || onTentarNovamente != null || ocorrencias.isEmpty()) {
+                item { EstadoListaPublica(aCarregar, onTentarNovamente) }
             }
-            items(ocorrencias) { ocorrencia ->
-                Ocorrencia(
-                    situation = ocorrencia.situation,
-                    categoria = ocorrencia.categoria,
-                    status = ocorrencia.status,
-                    pathImg = ocorrencia.pathImg,
-                    modifier = Modifier
-                        .clip(MaterialTheme.shapes.large)
-                        .clickable(role = Role.Button) { onAbrirOcorrencia(ocorrencia.id) }
-                )
+            items(ocorrencias, key = { it.id }) { ocorrencia ->
+                CartaoOcorrenciaPublica(ocorrencia, carregarMiniatura) {
+                    onAbrirOcorrencia(ocorrencia.id)
+                }
             }
         }
     }

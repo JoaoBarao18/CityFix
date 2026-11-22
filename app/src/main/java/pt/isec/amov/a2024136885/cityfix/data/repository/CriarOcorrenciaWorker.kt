@@ -25,6 +25,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import pt.isec.amov.a2024136885.cityfix.data.model.MediaAttachment
 import pt.isec.amov.a2024136885.cityfix.data.model.Ocorrencia
@@ -44,22 +45,19 @@ internal class CriarOcorrenciaWorker(
 
         try {
             val repositorio = OcorrenciaRespository()
-            // A gravação pode ter terminado antes de o WorkManager registar o sucesso.
-            if (!ficheiroPedido.exists()) {
-                val existente = Ocorrencia(id = id, autorId = autorId)
-                check(!repositorio.prepararCriacao(existente))
-                return@withContext Result.success()
-            }
+            val submetida = repositorio.procurarSubmissao(autorId, id)
+            val idGuardado = submetida ?: run {
+                val pedido = Json.decodeFromString<PedidoCriacao>(ficheiroPedido.readText())
+                val ocorrencia = pedido.ocorrencia
+                check(ocorrencia.autorId == autorId && ocorrencia.id == id)
+                repositorio.prepararCriacao(ocorrencia)
 
-            val pedido = Json.decodeFromString<PedidoCriacao>(ficheiroPedido.readText())
-            val ocorrencia = pedido.ocorrencia
-            check(ocorrencia.autorId == autorId && ocorrencia.id == id)
-
-            if (repositorio.prepararCriacao(ocorrencia)) {
                 val foto = pedido.fotoPath?.let(::ficheiroLocal)
                 val video = pedido.videoPath?.let(::ficheiroLocal)
                 require(foto != null || video != null)
-                val pasta = "ocorrencias/$autorId/$id/anexos"
+                val pasta = if (ocorrencia.publica) {
+                    "$PASTA_ANEXOS_PUBLICOS/$id"
+                } else "ocorrencias/$autorId/$id/anexos"
                 val anexos = buildList {
                     foto?.let { add(enviarFoto(it, pasta)) }
                     video?.let { add(enviarVideo(it, pasta)) }
@@ -67,7 +65,7 @@ internal class CriarOcorrenciaWorker(
                 repositorio.criar(ocorrencia.copy(ficheiros = anexos))
             }
             ficheiroPedido.delete()
-            Result.success()
+            Result.success(workDataOf("agrupada" to (idGuardado != id)))
         } catch (erro: Exception) {
             if (erro is CancellationException) throw erro
             Log.w("CriarOcorrencia", "Falha ao enviar a ocorrência", erro)
@@ -95,7 +93,7 @@ internal class CriarOcorrenciaWorker(
         val miniatura = criarMiniatura(foto)
         val raiz = FirebaseStorage.getInstance().reference
         val caminho = "$pasta/${foto.name}"
-        val caminhoMiniatura = "$pasta/miniaturas/${foto.name}"
+        val caminhoMiniatura = "$pasta/miniatura_${foto.name}"
         val metadata = StorageMetadata.Builder().setContentType("image/jpeg").build()
         raiz.child(caminho).putFile(Uri.fromFile(foto), metadata).aguardarEnvio()
         raiz.child(caminhoMiniatura).putBytes(miniatura, metadata).aguardarEnvio()

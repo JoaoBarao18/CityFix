@@ -63,7 +63,13 @@ internal fun PainelOperacionalScreen(
     when {
         estado.aCarregarLista -> ACarregarOcorrencias()
         estado.erroLista -> ErroAoCarregar { viewModel.carregarLista(operadorId) }
-        else -> PainelOperacionalContent(estado.ocorrencias, onAbrirOcorrencia)
+        else -> PainelOperacionalContent(
+            ocorrencias = estado.ocorrencias,
+            onAbrirOcorrencia = onAbrirOcorrencia,
+            onAtualizarPainelPublico = { viewModel.atualizarPainelPublico(operadorId) },
+            aAtualizarPainelPublico = estado.aAtualizarPainelPublico,
+            mensagemPainelPublico = estado.mensagemPainelPublico
+        )
     }
 }
 
@@ -96,7 +102,7 @@ internal fun DetalheOperacionalScreen(
     }
 
     val captura = rememberCapturaMultimedia()
-    val proximidade = rememberAtivarProximidade(id, viewModel)
+    val proximidade = rememberAtivarProximidade(id, operadorId, viewModel)
     val ocorrencia = detalhe.ocorrencia
     LaunchedEffect(trabalho?.id, trabalho?.state, ocorrencia.estado) {
         if (trabalho?.state == WorkInfo.State.SUCCEEDED) {
@@ -207,7 +213,11 @@ internal fun DetalheOperacionalScreen(
 }
 
 @Composable
-private fun rememberAtivarProximidade(id: String, viewModel: PainelOperacionalViewModel): () -> Unit {
+private fun rememberAtivarProximidade(
+    id: String,
+    operadorId: String,
+    viewModel: PainelOperacionalViewModel
+): () -> Unit {
     val context = LocalContext.current
     var permissaoPedida by remember(id) { mutableStateOf(false) }
 
@@ -217,7 +227,7 @@ private fun rememberAtivarProximidade(id: String, viewModel: PainelOperacionalVi
     fun concluir() {
         permissaoPedida = false
         val ocorrencia = viewModel.estado.value.detalhe?.ocorrencia?.takeIf { it.id == id } ?: return
-        viewModel.registarProximidade(context.applicationContext, ocorrencia)
+        viewModel.registarProximidade(context.applicationContext, operadorId, ocorrencia)
     }
 
     val segundoPlano = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { concedida ->

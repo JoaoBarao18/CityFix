@@ -56,23 +56,26 @@ import pt.isec.amov.a2024136885.cityfix.ui.screens.auth.RegisterScreen
 import pt.isec.amov.a2024136885.cityfix.ui.screens.operador.DetalheOperacionalScreen
 import pt.isec.amov.a2024136885.cityfix.ui.screens.operador.PainelOperacionalScreen
 import pt.isec.amov.a2024136885.cityfix.ui.screens.municipe.CriarOcorrenciaRoute
+import pt.isec.amov.a2024136885.cityfix.ui.screens.municipe.DetalheMinhaOcorrenciaRoute
+import pt.isec.amov.a2024136885.cityfix.ui.screens.municipe.MinhasOcorrenciasRoute
 import pt.isec.amov.a2024136885.cityfix.ui.screens.municipe.SugestaoImpacto
 import pt.isec.amov.a2024136885.cityfix.ui.screens.profile.ProfileEditScreen
 import pt.isec.amov.a2024136885.cityfix.ui.viewmodel.PainelOperacionalViewModel
 import pt.isec.amov.a2024136885.cityfix.ui.viewmodel.AuthViewModel
 import pt.isec.amov.a2024136885.cityfix.ui.viewmodel.AuthViewModelFactory
 import pt.isec.amov.a2024136885.cityfix.util.NotificationHelper
-import pt.isec.amov.a2024136885.cityfix.ui.screens.publico.DetalheOcorrenciaPublicaContent
-import pt.isec.amov.a2024136885.cityfix.ui.screens.publico.ListaOcorrenciasPublicas
-import pt.isec.amov.a2024136885.cityfix.ui.screens.publico.PainelPublicoContent
-import pt.isec.amov.a2024136885.cityfix.ui.screens.publico.ocorrenciasExemplo
-import kotlin.math.round
+import pt.isec.amov.a2024136885.cityfix.data.repository.OcorrenciaRespository
+import kotlinx.coroutines.flow.catch
+import pt.isec.amov.a2024136885.cityfix.ui.screens.publico.DetalhePublicoRoute
+import pt.isec.amov.a2024136885.cityfix.ui.screens.publico.ListaPublicaRoute
+import pt.isec.amov.a2024136885.cityfix.ui.screens.publico.PainelPublicoRoute
+import pt.isec.amov.a2024136885.cityfix.ui.viewmodel.PainelPublicoViewModel
 
 @Composable
 fun AppNavHost() {
    val navController = rememberNavController()
    val context = LocalContext.current
-   val ocorrenciasPublicas = ocorrenciasExemplo(context.packageName)
+   val painelPublicoViewModel: PainelPublicoViewModel = viewModel()
    var aCheckarLocalizacao by remember { mutableStateOf(false) }
    var mensagemVisitor by remember { mutableStateOf<Int?>(null) }
    val localCliente = remember(context) {
@@ -92,6 +95,20 @@ fun AppNavHost() {
    }
    val municipe = authUiState.currentUser?.takeIf {
       authUiState.isLoginSuccessful && it.perfil == "municipe" && it.validado
+   }
+
+   LaunchedEffect(municipe?.uid) {
+      val uid = municipe?.uid ?: return@LaunchedEffect
+      OcorrenciaRespository().observarMinhas(uid)
+         .catch { Log.w("CityFixProximidade", "Falha ao observar avisos", it) }
+         .collect { ocorrencias ->
+            ocorrencias.forEach { ocorrencia ->
+               val instante = ocorrencia.proximidadeEm
+               if (ocorrencia.estado == "em_resolucao" && instante != null) {
+                  notificationHelper.mostrarProximidadeSeNova(uid, ocorrencia.id, instante)
+               }
+            }
+         }
    }
 
    // Transição automática para o ecrã de desafio MFA quando gerado o código
@@ -317,11 +334,13 @@ fun AppNavHost() {
          }
 
          composable <Route.OcorrenciasPublicas>{
-            PainelPublicoContent(
-               ocorrencias = ocorrenciasPublicas,
-               onVerTodas = {navController.navigate(Route.ListarOcorrenciasPublicas)},
-               onAbrirOcorrencia = { id -> navController.navigate(Route.DetalheOcorrenciaPublica(id)) },
-               onCriarOcorrencia = municipe?.let { { navController.navigate(Route.CriarOcorrencia) } }
+            PainelPublicoRoute(
+               vm = painelPublicoViewModel,
+               onVerTodas = { navController.navigate(Route.ListarOcorrenciasPublicas) },
+               onAbrir = { id -> navController.navigate(Route.DetalheOcorrenciaPublica(id)) },
+               onCriar = municipe?.let { { navController.navigate(Route.CriarOcorrencia) } },
+               onMinhas = municipe?.let { { navController.navigate(Route.MinhasOcorrencias) } },
+               visitante = !authUiState.isLoginSuccessful
             )
             SugestaoImpacto(
                detImpactosAtiva = municipe?.detecaoImpactos == true,
@@ -329,6 +348,30 @@ fun AppNavHost() {
                   navController.navigate(Route.CriarOcorrencia)
                }
             )
+         }
+
+         composable<Route.MinhasOcorrencias> {
+            if (municipe != null) {
+               MinhasOcorrenciasRoute(
+                  autorId = municipe.uid,
+                  onAbrir = { id -> navController.navigate(Route.DetalheMinhaOcorrencia(id)) },
+                  onVoltar = { navController.popBackStack() }
+               )
+            } else {
+               LaunchedEffect(Unit) { navController.popBackStack() }
+            }
+         }
+
+         composable<Route.DetalheMinhaOcorrencia> { entrada ->
+            if (municipe != null) {
+               DetalheMinhaOcorrenciaRoute(
+                  autorId = municipe.uid,
+                  id = entrada.toRoute<Route.DetalheMinhaOcorrencia>().id,
+                  onVoltar = { navController.popBackStack() }
+               )
+            } else {
+               LaunchedEffect(Unit) { navController.popBackStack() }
+            }
          }
 
          composable<Route.CriarOcorrencia> {
@@ -341,36 +384,20 @@ fun AppNavHost() {
             }
          }
 
-         composable<Route.ListarOcorrenciasPublicas>{
-            ListaOcorrenciasPublicas(
-               ocorrencias = ocorrenciasPublicas,
-               onAbrirOcorrencia = { id ->
-                  navController.navigate(Route.DetalheOcorrenciaPublica(id))
-               },
+         composable<Route.ListarOcorrenciasPublicas> {
+            ListaPublicaRoute(
+               vm = painelPublicoViewModel,
+               onAbrir = { id -> navController.navigate(Route.DetalheOcorrenciaPublica(id)) },
                onVoltar = { navController.popBackStack() }
             )
          }
 
-         composable<Route.DetalheOcorrenciaPublica>{
-            entrada ->
-            val rota = entrada.toRoute<Route.DetalheOcorrenciaPublica>()
-            val ocorrencia = ocorrenciasPublicas.firstOrNull(){
-               it.id == rota.id
-            }
-
-            if(ocorrencia != null){
-               DetalheOcorrenciaPublicaContent(
-                  categoria = ocorrencia.categoria,
-                  situacao = ocorrencia.situation,
-                  status = ocorrencia.status,
-                  descricao = ocorrencia.descricao,
-                  latitudeAproximada = round(ocorrencia.latitude * 10) / 10,
-                  longitudeAproximada = round(ocorrencia.longitude * 10) / 10,
-                  pathImg = ocorrencia.pathImg,
-                  pathVideo = ocorrencia.pathVideo,
-                  onVoltar = { navController.popBackStack() },
-               )
-            }
+         composable<Route.DetalheOcorrenciaPublica> { entrada ->
+            DetalhePublicoRoute(
+               vm = painelPublicoViewModel,
+               id = entrada.toRoute<Route.DetalheOcorrenciaPublica>().id,
+               onVoltar = { navController.popBackStack() }
+            )
          }
       }
    }
