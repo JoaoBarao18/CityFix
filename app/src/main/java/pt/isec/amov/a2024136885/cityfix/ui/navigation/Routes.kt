@@ -41,6 +41,12 @@ sealed interface Route{
     data object Dashboard : Route
 
     @Serializable
+    data object ValidateUsers : Route
+
+    @Serializable
+    data object ManageCategories : Route
+  
+    @Serializable
     data object PainelOperacional : Route
 
     @Serializable

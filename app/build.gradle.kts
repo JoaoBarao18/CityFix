@@ -69,4 +69,5 @@ dependencies {
     implementation(libs.kotlinx.coroutines.play.services)
     implementation("org.maplibre.gl:android-sdk:12.0.1")
     implementation("androidx.compose.material:material-icons-core")
+    implementation("androidx.exifinterface:exifinterface:1.3.7")
 }

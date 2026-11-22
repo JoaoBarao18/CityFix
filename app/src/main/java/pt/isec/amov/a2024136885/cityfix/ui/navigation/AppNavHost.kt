@@ -53,6 +53,22 @@ import pt.isec.amov.a2024136885.cityfix.domain.location.estaDentroRaio
 import pt.isec.amov.a2024136885.cityfix.ui.screens.auth.LoginScreen
 import pt.isec.amov.a2024136885.cityfix.ui.screens.auth.MfaChallengeScreen
 import pt.isec.amov.a2024136885.cityfix.ui.screens.auth.RegisterScreen
+import pt.isec.amov.a2024136885.cityfix.ui.screens.operator.ValidateUsersScreen
+import pt.isec.amov.a2024136885.cityfix.ui.screens.profile.ProfileEditScreen
+import pt.isec.amov.a2024136885.cityfix.ui.screens.publico.DetalheOcorrenciaPublicaContent
+import pt.isec.amov.a2024136885.cityfix.ui.screens.publico.ListaOcorrenciasPublicas
+import pt.isec.amov.a2024136885.cityfix.ui.screens.publico.PainelPublicoContent
+import pt.isec.amov.a2024136885.cityfix.ui.screens.publico.ocorrenciasExemplo
+import pt.isec.amov.a2024136885.cityfix.ui.viewmodel.AuthViewModel
+import pt.isec.amov.a2024136885.cityfix.ui.viewmodel.AuthViewModelFactory
+import pt.isec.amov.a2024136885.cityfix.ui.viewmodel.OperatorViewModel
+import pt.isec.amov.a2024136885.cityfix.ui.viewmodel.OperatorViewModelFactory
+import pt.isec.amov.a2024136885.cityfix.ui.screens.operator.ManageCategoriesScreen
+import pt.isec.amov.a2024136885.cityfix.ui.viewmodel.CategoryViewModel
+import pt.isec.amov.a2024136885.cityfix.ui.viewmodel.CategoryViewModelFactory
+import pt.isec.amov.a2024136885.cityfix.data.repository.CategoryRepository
+import pt.isec.amov.a2024136885.cityfix.util.NotificationHelper
+import kotlin.math.round
 import pt.isec.amov.a2024136885.cityfix.ui.screens.operador.DetalheOperacionalScreen
 import pt.isec.amov.a2024136885.cityfix.ui.screens.operador.PainelOperacionalScreen
 import pt.isec.amov.a2024136885.cityfix.ui.screens.municipe.CriarOcorrenciaRoute
@@ -128,6 +144,19 @@ fun AppNavHost() {
       }
    }
 
+   // Setup do OperatorViewModel
+   val operatorViewModel: OperatorViewModel = viewModel(
+      factory = OperatorViewModelFactory(userRepository)
+   )
+   val operatorUiState by operatorViewModel.uiState.collectAsState()
+
+   // Setup do CategoryViewModel
+   val categoryRepository = remember { CategoryRepository() }
+   val categoryViewModel: CategoryViewModel = viewModel(
+      factory = CategoryViewModelFactory(categoryRepository)
+   )
+   val categoryUiState by categoryViewModel.uiState.collectAsState()
+
    val locationpermission = rememberLauncherForActivityResult(
       contract = ActivityResultContracts.RequestMultiplePermissions()
    ) { permissions ->
@@ -157,8 +186,7 @@ fun AppNavHost() {
          }
          aCheckarLocalizacao = true
          localCliente.getCurrentLocation(prioridade, null)
-            .addOnSuccessListener {
-               location ->
+            .addOnSuccessListener { location ->
                aCheckarLocalizacao = false
                if (location == null) {
                   Log.d("CityFixLocation", "Posicao indisponivel")
@@ -166,7 +194,7 @@ fun AppNavHost() {
                } else {
                   Log.d("CityFixLocation", "Lat=${location.latitude}, Lon=${location.longitude}")
 
-                  if(estaDentroRaio(longitude = location.longitude, latitude = location.latitude)){
+                  if (estaDentroRaio(longitude = location.longitude, latitude = location.latitude)) {
                      navController.navigate(Route.OcorrenciasPublicas)
                   } else {
                      mensagemVisitor = R.string.visitor_outside_radius
@@ -305,6 +333,60 @@ fun AppNavHost() {
             )
          }
 
+         composable<Route.ValidateUsers> {
+            ValidateUsersScreen(
+               uiState = operatorUiState,
+               onApproveClick = { uid -> operatorViewModel.approveMunicipe(uid) },
+               onBackClick = { navController.popBackStack() },
+               onClearFeedback = { operatorViewModel.clearFeedback() }
+            )
+         }
+
+         composable<Route.ManageCategories> {
+            ManageCategoriesScreen(
+               uiState = categoryUiState,
+               onAddCategory = { nome -> categoryViewModel.addCategory(nome) },
+               onEditCategory = { id, novoNome -> categoryViewModel.editCategory(id, novoNome) },
+               onToggleCategoryStatus = { id, ativa -> categoryViewModel.toggleCategoryStatus(id, ativa) },
+               onBackClick = { navController.popBackStack() },
+               onClearFeedback = { categoryViewModel.clearFeedback() }
+            )
+         }
+
+         composable<Route.OcorrenciasPublicas> {
+            PainelPublicoContent(
+               ocorrencias = ocorrenciasPublicas,
+               currentUser = authUiState.currentUser,
+               onVerTodas = { navController.navigate(Route.ListarOcorrenciasPublicas) },
+               onAbrirOcorrencia = { id -> navController.navigate(Route.DetalheOcorrenciaPublica(id)) },
+               onPerfilClick = { navController.navigate(Route.ProfileEdit) },
+               onValidateUsersClick = { navController.navigate(Route.ValidateUsers) },
+               onManageCategoriesClick = { navController.navigate(Route.ManageCategories) },
+               onLogoutClick = {
+                  if (authUiState.currentUser != null) {
+                     authViewModel.logout()
+                  }
+                  navController.navigate(Route.Entrada) {
+                     popUpTo(Route.Entrada) { inclusive = true }
+                  }
+               }
+            )
+         }
+
+         composable<Route.ListarOcorrenciasPublicas> {
+            ListaOcorrenciasPublicas(
+               ocorrencias = ocorrenciasPublicas,
+               onAbrirOcorrencia = { id ->
+                  navController.navigate(Route.DetalheOcorrenciaPublica(id))
+               },
+               onVoltar = { navController.popBackStack() }
+            )
+         }
+
+         composable<Route.DetalheOcorrenciaPublica> { entrada ->
+            val rota = entrada.toRoute<Route.DetalheOcorrenciaPublica>()
+            val ocorrencia = ocorrenciasPublicas.firstOrNull {
+               it.id == rota.id
          composable<Route.PainelOperacional> {
             if (operador != null) {
                val painelViewModel: PainelOperacionalViewModel = viewModel()
@@ -362,6 +444,17 @@ fun AppNavHost() {
             }
          }
 
+            if (ocorrencia != null) {
+               DetalheOcorrenciaPublicaContent(
+                  categoria = ocorrencia.categoria,
+                  situacao = ocorrencia.situation,
+                  status = ocorrencia.status,
+                  descricao = ocorrencia.descricao,
+                  latitudeAproximada = round(ocorrencia.latitude * 10) / 10,
+                  longitudeAproximada = round(ocorrencia.longitude * 10) / 10,
+                  pathImg = ocorrencia.pathImg,
+                  pathVideo = ocorrencia.pathVideo,
+                  onVoltar = { navController.popBackStack() },
          composable<Route.DetalheMinhaOcorrencia> { entrada ->
             if (municipe != null) {
                DetalheMinhaOcorrenciaRoute(

@@ -195,7 +195,7 @@ class AuthViewModel(
         viewModelScope.launch {
             val isOperador = user.perfil == "operador"
             val result = userRepository.updateProfile(user.uid, isOperador, telefone, fotoUrl, impactos)
-            result.onSuccess {
+            result.onSuccess { _ ->
                 fetchCurrentUser()
                 _uiState.update { it.copy(isLoading = false, successMessage = "Perfil atualizado!") }
             }.onFailure { err ->
