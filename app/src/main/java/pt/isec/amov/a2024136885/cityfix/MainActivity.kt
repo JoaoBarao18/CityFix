@@ -1,3 +1,6 @@
+// Inicia a interface do CityFix
+// aplica o tema e chama o AppNavHost.
+
 package pt.isec.amov.a2024136885.cityfix
 
 import android.os.Bundle
@@ -11,6 +14,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
+import pt.isec.amov.a2024136885.cityfix.ui.navigation.AppNavHost
 import pt.isec.amov.a2024136885.cityfix.ui.theme.CityFIxTheme
 
 class MainActivity : ComponentActivity() {
@@ -18,30 +22,11 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            CityFIxTheme {
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    Greeting(
-                        name = "Android",
-                        modifier = Modifier.padding(innerPadding)
-                    )
-                }
+            CityFIxTheme(dynamicColor = false) {
+                AppNavHost()
             }
         }
+
     }
 }
 
-@Composable
-fun Greeting(name: String, modifier: Modifier = Modifier) {
-    Text(
-        text = "Hello $name!",
-        modifier = modifier
-    )
-}
-
-@Preview(showBackground = true)
-@Composable
-fun GreetingPreview() {
-    CityFIxTheme {
-        Greeting("Android")
-    }
-}
