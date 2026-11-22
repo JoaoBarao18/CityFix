@@ -96,6 +96,12 @@ internal class PainelOperacionalViewModel : ViewModel() {
         }
     }
 
+    fun pedirInformacoes(operadorId: String, id: String) {
+        guardar(operadorId, id, R.string.operational_request_info_error, {}) {
+            repositorio.pedirInformacoes(operadorId, id)
+        }
+    }
+
     fun iniciarResolucao(operadorId: String, id: String, aposGuardar: (Ocorrencia) -> Unit) {
         guardar(operadorId, id, R.string.operational_start_error, aposGuardar) {
             repositorio.iniciarResolucao(operadorId, id)

@@ -57,7 +57,8 @@ fun DetalheOcorrenciaPublicaContent(
     onVoltar: () -> Unit = {},
     modifier: Modifier = Modifier,
     mostrarAvisoProximidade: Boolean = false,
-    anexosPublicados: @Composable () -> Unit = {}
+    anexosPublicados: @Composable () -> Unit = {},
+    conteudoAdicional: @Composable () -> Unit = {}
 ) {
     Column(
         modifier = modifier
@@ -136,6 +137,7 @@ fun DetalheOcorrenciaPublicaContent(
                 }
             }
         }
+        conteudoAdicional()
     }
 }
 

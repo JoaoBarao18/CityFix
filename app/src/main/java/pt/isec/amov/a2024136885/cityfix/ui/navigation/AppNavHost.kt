@@ -6,6 +6,7 @@ import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
 import android.util.Log
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
@@ -40,20 +41,21 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
+import kotlinx.coroutines.flow.catch
 import pt.isec.amov.a2024136885.cityfix.R
-import pt.isec.amov.a2024136885.cityfix.data.model.Category
 import pt.isec.amov.a2024136885.cityfix.data.repository.AuthRepository
-import androidx.compose.runtime.produceState
 import pt.isec.amov.a2024136885.cityfix.data.repository.CategoryRepository
-import pt.isec.amov.a2024136885.cityfix.data.repository.OcorrenciaRepository
-import pt.isec.amov.a2024136885.cityfix.ui.screens.publico.OcorrenciaPublicaUi
+import pt.isec.amov.a2024136885.cityfix.data.repository.OcorrenciaRespository
 import pt.isec.amov.a2024136885.cityfix.data.repository.UserRepository
+import pt.isec.amov.a2024136885.cityfix.data.worker.TicketClosingReminderWorker
 import pt.isec.amov.a2024136885.cityfix.domain.location.estaDentroRaio
 import pt.isec.amov.a2024136885.cityfix.ui.screens.auth.LoginScreen
 import pt.isec.amov.a2024136885.cityfix.ui.screens.auth.MfaChallengeScreen
@@ -67,10 +69,9 @@ import pt.isec.amov.a2024136885.cityfix.ui.screens.operador.PainelOperacionalScr
 import pt.isec.amov.a2024136885.cityfix.ui.screens.operator.ManageCategoriesScreen
 import pt.isec.amov.a2024136885.cityfix.ui.screens.operator.ValidateUsersScreen
 import pt.isec.amov.a2024136885.cityfix.ui.screens.profile.ProfileEditScreen
-import pt.isec.amov.a2024136885.cityfix.ui.screens.publico.DetalheOcorrenciaPublicaContent
-import pt.isec.amov.a2024136885.cityfix.ui.screens.publico.ListaOcorrenciasPublicas
-import pt.isec.amov.a2024136885.cityfix.ui.screens.publico.PainelPublicoContent
-import pt.isec.amov.a2024136885.cityfix.ui.screens.publico.ocorrenciasExemplo
+import pt.isec.amov.a2024136885.cityfix.ui.screens.publico.DetalhePublicoRoute
+import pt.isec.amov.a2024136885.cityfix.ui.screens.publico.ListaPublicaRoute
+import pt.isec.amov.a2024136885.cityfix.ui.screens.publico.PainelPublicoRoute
 import pt.isec.amov.a2024136885.cityfix.ui.viewmodel.AuthViewModel
 import pt.isec.amov.a2024136885.cityfix.ui.viewmodel.AuthViewModelFactory
 import pt.isec.amov.a2024136885.cityfix.ui.viewmodel.CategoryViewModel
@@ -78,14 +79,15 @@ import pt.isec.amov.a2024136885.cityfix.ui.viewmodel.CategoryViewModelFactory
 import pt.isec.amov.a2024136885.cityfix.ui.viewmodel.OperatorViewModel
 import pt.isec.amov.a2024136885.cityfix.ui.viewmodel.OperatorViewModelFactory
 import pt.isec.amov.a2024136885.cityfix.ui.viewmodel.PainelOperacionalViewModel
+import pt.isec.amov.a2024136885.cityfix.ui.viewmodel.PainelPublicoViewModel
 import pt.isec.amov.a2024136885.cityfix.util.NotificationHelper
-import kotlin.math.round
 
 @Composable
 fun AppNavHost() {
    val navController = rememberNavController()
    val context = LocalContext.current
-   val ocorrenciasPublicas = ocorrenciasExemplo(context.packageName)
+   val painelPublicoViewModel: PainelPublicoViewModel = viewModel()
+   val entradaAtual by navController.currentBackStackEntryAsState()
    var aCheckarLocalizacao by remember { mutableStateOf(false) }
    var mensagemVisitor by remember { mutableStateOf<Int?>(null) }
    val localCliente = remember(context) {
@@ -93,7 +95,8 @@ fun AppNavHost() {
    }
 
    // Setup dos ViewModels
-   val notificationHelper = remember(context) { NotificationHelper(context) }
+   val appContext = context.applicationContext
+   val notificationHelper = remember(appContext) { NotificationHelper(appContext) }
    val authRepository = remember(notificationHelper) { AuthRepository(notificationHelper = notificationHelper) }
    val userRepository = remember { UserRepository() }
    val categoryRepository = remember { CategoryRepository() }
@@ -102,34 +105,6 @@ fun AppNavHost() {
    )
    val authUiState by authViewModel.uiState.collectAsState()
 
-   val categoriesState by produceState<List<Category>>(initialValue = emptyList()) {
-      categoryRepository.getAllCategoriesFlow().collect { result ->
-         result.onSuccess { value = it }
-      }
-   }
-
-   val ocorrenciaRepository = remember { OcorrenciaRepository(context) }
-   val ocorrenciasFirestoreState by produceState<List<OcorrenciaPublicaUi>>(initialValue = emptyList(), key1 = categoriesState) {
-      ocorrenciaRepository.getOcorrenciasPublicasFlow().collect { result ->
-         result.onSuccess { lista ->
-            value = lista.map { o ->
-               val nomeCat = categoriesState.firstOrNull { c -> c.id == o.categoriaId }?.nome?.ifBlank { null } ?: o.categoriaId
-               OcorrenciaPublicaUi(
-                  id = o.id,
-                  categoria = nomeCat,
-                  situation = o.situacao,
-                  status = o.estado,
-                  pathImg = o.ficheiros.firstOrNull { it.tipo == "foto" }?.let { it.thumbnailPath ?: it.storagePath },
-                  descricao = o.descricao,
-                  latitude = o.latitude,
-                  longitude = o.longitude
-               )
-            }
-         }
-      }
-   }
-   val listaFinalOcorrencias = if (ocorrenciasFirestoreState.isNotEmpty()) ocorrenciasFirestoreState else ocorrenciasPublicas
-
    val operador = authUiState.currentUser?.takeIf {
       authUiState.isLoginSuccessful && it.perfil == "operador" && it.validado
    }
@@ -137,20 +112,43 @@ fun AppNavHost() {
       authUiState.isLoginSuccessful && it.perfil == "municipe" && it.validado
    }
 
-   // Transição automática para o ecrã de desafio MFA quando gerado o código
-   LaunchedEffect(authUiState.pendingMfaUid) {
-      authUiState.pendingMfaUid?.let { uid ->
-         navController.navigate(Route.MfaChallenge(uid = uid))
-      }
+   LaunchedEffect(municipe?.uid) {
+      val uid = municipe?.uid ?: return@LaunchedEffect
+      OcorrenciaRespository().observarMinhas(uid)
+         .catch { Log.w("CityFixProximidade", "Falha ao observar os avisos", it) }
+         .collect { lista ->
+            TicketClosingReminderWorker.sincronizarPrazos(appContext, uid, lista)
+            lista.forEach { ocorrencia ->
+               val instante = ocorrencia.proximidadeEm?.toDate()?.time
+               if (ocorrencia.estado == "em_resolucao" && instante != null) {
+                  notificationHelper.mostrarProximidadeSeNova(uid, ocorrencia.id, instante)
+               }
+            }
+         }
    }
 
-   // Transição para as ocorrências após validação completa de login + MFA
-   LaunchedEffect(authUiState.isLoginSuccessful) {
-      if (authUiState.isLoginSuccessful) {
-         val destino = if (operador != null) Route.PainelOperacional else Route.OcorrenciasPublicas
-         navController.navigate(destino) {
-            popUpTo(Route.Entrada) { inclusive = true }
+   val destinoAtual = entradaAtual?.destination
+   LaunchedEffect(destinoAtual, authUiState.pendingMfaUid, authUiState.isLoginSuccessful) {
+      when {
+         destinoAtual?.hasRoute<Route.Login>() == true -> {
+            authUiState.pendingMfaUid?.let { uid ->
+               navController.navigate(Route.MfaChallenge(uid)) { launchSingleTop = true }
+            }
          }
+         destinoAtual?.hasRoute<Route.MfaChallenge>() == true && authUiState.isLoginSuccessful -> {
+            val destino = if (operador != null) Route.PainelOperacional else Route.OcorrenciasPublicas
+            navController.navigate(destino) {
+               popUpTo(Route.Entrada) { inclusive = true }
+               launchSingleTop = true
+            }
+         }
+      }
+   }
+   val terminarSessao: () -> Unit = {
+      authViewModel.logout()
+      navController.navigate(Route.Entrada) {
+         popUpTo(navController.graph.id) { inclusive = true }
+         launchSingleTop = true
       }
    }
 
@@ -201,7 +199,6 @@ fun AppNavHost() {
                   Log.d("CityFixLocation", "Posicao indisponivel")
                   mensagemVisitor = R.string.visitor_location_unavailable
                } else {
-                  Log.d("CityFixLocation", "Lat=${location.latitude}, Lon=${location.longitude}")
 
                   if (estaDentroRaio(longitude = location.longitude, latitude = location.latitude)) {
                      navController.navigate(Route.OcorrenciasPublicas)
@@ -291,16 +288,18 @@ fun AppNavHost() {
 
          composable<Route.MfaChallenge> { backStackEntry ->
             val args = backStackEntry.toRoute<Route.MfaChallenge>()
+            val cancelarMfa: () -> Unit = {
+               authViewModel.logout()
+               navController.popBackStack()
+            }
+            BackHandler(onBack = cancelarMfa)
             MfaChallengeScreen(
                uid = args.uid,
                uiState = authUiState,
                onVerifyClick = { uid, code ->
                   authViewModel.submitMfaCode(uid, code)
                },
-               onCancelClick = {
-                  authViewModel.clearMessages()
-                  navController.popBackStack()
-               }
+               onCancelClick = cancelarMfa
             )
          }
 
@@ -350,23 +349,31 @@ fun AppNavHost() {
          }
 
          composable<Route.ValidateUsers> {
-            ValidateUsersScreen(
-               uiState = operatorUiState,
-               onApproveClick = { uid -> operatorViewModel.approveMunicipe(uid) },
-               onBackClick = { navController.popBackStack() },
-               onClearFeedback = { operatorViewModel.clearFeedback() }
-            )
+            if (operador != null) {
+               ValidateUsersScreen(
+                  uiState = operatorUiState,
+                  onApproveClick = operatorViewModel::approveMunicipe,
+                  onBackClick = { navController.popBackStack() },
+                  onClearFeedback = operatorViewModel::clearFeedback
+               )
+            } else {
+               LaunchedEffect(Unit) { navController.popBackStack() }
+            }
          }
 
          composable<Route.ManageCategories> {
-            ManageCategoriesScreen(
-               uiState = categoryUiState,
-               onAddCategory = { nome -> categoryViewModel.addCategory(nome) },
-               onEditCategory = { id, novoNome -> categoryViewModel.editCategory(id, novoNome) },
-               onToggleCategoryStatus = { id, ativa -> categoryViewModel.toggleCategoryStatus(id, ativa) },
-               onBackClick = { navController.popBackStack() },
-               onClearFeedback = { categoryViewModel.clearFeedback() }
-            )
+            if (operador != null) {
+               ManageCategoriesScreen(
+                  uiState = categoryUiState,
+                  onAddCategory = categoryViewModel::addCategory,
+                  onEditCategory = categoryViewModel::editCategory,
+                  onToggleCategoryStatus = categoryViewModel::toggleCategoryStatus,
+                  onBackClick = { navController.popBackStack() },
+                  onClearFeedback = categoryViewModel::clearFeedback
+               )
+            } else {
+               LaunchedEffect(Unit) { navController.popBackStack() }
+            }
          }
 
          composable<Route.PainelOperacional> {
@@ -375,7 +382,11 @@ fun AppNavHost() {
                PainelOperacionalScreen(
                   operadorId = operador.uid,
                   viewModel = painelViewModel,
-                  onAbrirOcorrencia = { id -> navController.navigate(Route.DetalheOperacional(id)) }
+                  onAbrirOcorrencia = { id -> navController.navigate(Route.DetalheOperacional(id)) },
+                  onPerfilClick = { navController.navigate(Route.ProfileEdit) },
+                  onValidateUsersClick = { navController.navigate(Route.ValidateUsers) },
+                  onManageCategoriesClick = { navController.navigate(Route.ManageCategories) },
+                  onLogoutClick = terminarSessao
                )
             } else {
                LaunchedEffect(Unit) { navController.navigate(Route.Entrada) }
@@ -403,24 +414,15 @@ fun AppNavHost() {
                   authViewModel.fetchCurrentUser()
                }
             }
-            PainelPublicoContent(
-               ocorrencias = listaFinalOcorrencias,
-               currentUser = if (authUiState.isLoginSuccessful) authUiState.currentUser else null,
+            PainelPublicoRoute(
+               vm = painelPublicoViewModel,
+               utilizador = authUiState.currentUser.takeIf { authUiState.isLoginSuccessful },
                onVerTodas = { navController.navigate(Route.ListarOcorrenciasPublicas) },
-               onAbrirOcorrencia = { id -> navController.navigate(Route.DetalheOcorrenciaPublica(id)) },
-               onPerfilClick = { navController.navigate(Route.ProfileEdit) },
-               onValidateUsersClick = { navController.navigate(Route.ValidateUsers) },
-               onManageCategoriesClick = { navController.navigate(Route.ManageCategories) },
-               onLogoutClick = {
-                  if (authUiState.currentUser != null) {
-                     authViewModel.logout()
-                  }
-                  navController.navigate(Route.Entrada) {
-                     popUpTo(Route.Entrada) { inclusive = true }
-                  }
-               },
-               onCriarOcorrencia = municipe?.let { { navController.navigate(Route.CriarOcorrencia) } },
-               onMinhasOcorrencias = municipe?.let { { navController.navigate(Route.MinhasOcorrencias) } }
+               onAbrir = { id -> navController.navigate(Route.DetalheOcorrenciaPublica(id)) },
+               onCriar = municipe?.let { { navController.navigate(Route.CriarOcorrencia) } },
+               onMinhas = municipe?.let { { navController.navigate(Route.MinhasOcorrencias) } },
+               onPerfil = { navController.navigate(Route.ProfileEdit) },
+               onVoltarAoInicio = terminarSessao
             )
             SugestaoImpacto(
                detImpactosAtiva = municipe?.detecaoImpactos == true,
@@ -468,34 +470,19 @@ fun AppNavHost() {
          }
 
          composable<Route.ListarOcorrenciasPublicas> {
-            ListaOcorrenciasPublicas(
-               ocorrencias = listaFinalOcorrencias,
-               onAbrirOcorrencia = { id ->
-                  navController.navigate(Route.DetalheOcorrenciaPublica(id))
-               },
+            ListaPublicaRoute(
+               vm = painelPublicoViewModel,
+               onAbrir = { id -> navController.navigate(Route.DetalheOcorrenciaPublica(id)) },
                onVoltar = { navController.popBackStack() }
             )
          }
 
          composable<Route.DetalheOcorrenciaPublica> { entrada ->
-            val rota = entrada.toRoute<Route.DetalheOcorrenciaPublica>()
-            val ocorrencia = listaFinalOcorrencias.firstOrNull {
-               it.id == rota.id
-            }
-
-            if (ocorrencia != null) {
-               DetalheOcorrenciaPublicaContent(
-                  categoria = ocorrencia.categoria,
-                  situacao = ocorrencia.situation,
-                  status = ocorrencia.status,
-                  descricao = ocorrencia.descricao,
-                  latitudeAproximada = round((ocorrencia.latitude ?: 0.0) * 10) / 10,
-                  longitudeAproximada = round((ocorrencia.longitude ?: 0.0) * 10) / 10,
-                  pathImg = ocorrencia.pathImg,
-                  pathVideo = ocorrencia.pathVideo,
-                  onVoltar = { navController.popBackStack() }
-               )
-            }
+            DetalhePublicoRoute(
+               vm = painelPublicoViewModel,
+               id = entrada.toRoute<Route.DetalheOcorrenciaPublica>().id,
+               onVoltar = { navController.popBackStack() }
+            )
          }
       }
    }
@@ -514,7 +501,7 @@ fun EntradaContent(
       horizontalAlignment = Alignment.CenterHorizontally
    ) {
       Text(
-         text = "CityFix",
+         text = stringResource(R.string.app_name),
          style = MaterialTheme.typography.headlineLarge,
          color = MaterialTheme.colorScheme.primary,
          fontWeight = FontWeight.Bold
@@ -563,7 +550,7 @@ fun EntradaContent(
          onClick = onNavigateToLogin,
          modifier = Modifier.fillMaxWidth()
       ) {
-         Text("Sign In / Register")
+         Text(stringResource(R.string.auth_sign_in_register))
       }
 
       Text(

@@ -1,8 +1,6 @@
 package pt.isec.amov.a2024136885.cityfix.data.repository
 
 import android.content.Context
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.net.Uri
 import android.util.Log
 import android.webkit.MimeTypeMap
@@ -15,6 +13,7 @@ import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import androidx.work.await as aguardarOperacao
 import androidx.work.workDataOf
+import com.google.firebase.Timestamp
 import com.google.firebase.firestore.FirebaseFirestoreException
 import com.google.firebase.storage.FirebaseStorage
 import com.google.firebase.storage.StorageException
@@ -24,14 +23,20 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.descriptors.PrimitiveKind
+import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
 import kotlinx.serialization.encodeToString
+import kotlinx.serialization.encoding.Decoder
+import kotlinx.serialization.encoding.Encoder
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.modules.SerializersModule
 import pt.isec.amov.a2024136885.cityfix.data.model.MediaAttachment
 import pt.isec.amov.a2024136885.cityfix.data.model.Ocorrencia
-import java.io.ByteArrayOutputStream
+import pt.isec.amov.a2024136885.cityfix.util.ImageCompressor
 import java.io.File
-import kotlin.math.roundToInt
+import java.util.Date
 
 internal class CriarOcorrenciaWorker(
     context: Context,
@@ -47,7 +52,7 @@ internal class CriarOcorrenciaWorker(
             val repositorio = OcorrenciaRespository()
             val submetida = repositorio.procurarSubmissao(autorId, id)
             val idGuardado = submetida ?: run {
-                val pedido = Json.decodeFromString<PedidoCriacao>(ficheiroPedido.readText())
+                val pedido = jsonPedido.decodeFromString<PedidoCriacao>(ficheiroPedido.readText())
                 val ocorrencia = pedido.ocorrencia
                 check(ocorrencia.autorId == autorId && ocorrencia.id == id)
                 repositorio.prepararCriacao(ocorrencia)
@@ -59,7 +64,7 @@ internal class CriarOcorrenciaWorker(
                     "$PASTA_ANEXOS_PUBLICOS/$id"
                 } else "ocorrencias/$autorId/$id/anexos"
                 val anexos = buildList {
-                    foto?.let { add(enviarFoto(it, pasta)) }
+                    foto?.let { add(enviarFoto(it, pasta, id)) }
                     video?.let { add(enviarVideo(it, pasta)) }
                 }
                 repositorio.criar(ocorrencia.copy(ficheiros = anexos))
@@ -89,15 +94,25 @@ internal class CriarOcorrenciaWorker(
         return ficheiro
     }
 
-    private suspend fun enviarFoto(foto: File, pasta: String): MediaAttachment {
-        val miniatura = criarMiniatura(foto)
+    private suspend fun enviarFoto(foto: File, pasta: String, id: String): MediaAttachment {
+        val ficheiros = ImageCompressor.compressAndGenerateThumbnail(
+            applicationContext,
+            Uri.fromFile(foto),
+            id
+        ).getOrThrow()
         val raiz = FirebaseStorage.getInstance().reference
-        val caminho = "$pasta/${foto.name}"
-        val caminhoMiniatura = "$pasta/miniatura_${foto.name}"
+        val caminho = "$pasta/foto.jpg"
+        val caminhoMiniatura = "$pasta/miniatura.jpg"
         val metadata = StorageMetadata.Builder().setContentType("image/jpeg").build()
-        raiz.child(caminho).putFile(Uri.fromFile(foto), metadata).aguardarEnvio()
-        raiz.child(caminhoMiniatura).putBytes(miniatura, metadata).aguardarEnvio()
-        return MediaAttachment("foto", caminho, "image/jpeg", caminhoMiniatura)
+        try {
+            check(ficheiros.mainFile.length() > 0 && ficheiros.thumbnailFile.length() > 0)
+            raiz.child(caminho).putFile(Uri.fromFile(ficheiros.mainFile), metadata).aguardarEnvio()
+            raiz.child(caminhoMiniatura).putFile(Uri.fromFile(ficheiros.thumbnailFile), metadata).aguardarEnvio()
+            return MediaAttachment("foto", caminho, "image/jpeg", caminhoMiniatura)
+        } finally {
+            ficheiros.mainFile.delete()
+            ficheiros.thumbnailFile.delete()
+        }
     }
 
     private suspend fun enviarVideo(video: File, pasta: String): MediaAttachment {
@@ -119,27 +134,6 @@ internal class CriarOcorrenciaWorker(
         }
     }
 
-    private fun criarMiniatura(foto: File): ByteArray {
-        // As fotografias da app já são captadas com TakePicturePreview e comprimidas em JPEG.
-        val original = requireNotNull(BitmapFactory.decodeFile(foto.path))
-        val escala = minOf(1f, 320f / maxOf(original.width, original.height))
-        val miniatura = Bitmap.createScaledBitmap(
-            original,
-            (original.width * escala).roundToInt().coerceAtLeast(1),
-            (original.height * escala).roundToInt().coerceAtLeast(1),
-            true
-        )
-        try {
-            return ByteArrayOutputStream().use { output ->
-                check(miniatura.compress(Bitmap.CompressFormat.JPEG, 80, output))
-                output.toByteArray()
-            }
-        } finally {
-            if (miniatura !== original) miniatura.recycle()
-            original.recycle()
-        }
-    }
-
     @Serializable
     private data class PedidoCriacao(
         val ocorrencia: Ocorrencia,
@@ -148,6 +142,13 @@ internal class CriarOcorrenciaWorker(
     )
 
     companion object {
+        private val jsonPedido = Json {
+            ignoreUnknownKeys = true
+            serializersModule = SerializersModule {
+                contextual(Timestamp::class, TimestampPedidoSerializer)
+            }
+        }
+
         fun nome(id: String) = "criar-ocorrencia:$id"
 
         suspend fun agendar(
@@ -160,7 +161,7 @@ internal class CriarOcorrenciaWorker(
             withContext(Dispatchers.IO) {
                 val ficheiro = ficheiroPedido(context, ocorrencia.id)
                 ficheiro.parentFile?.mkdirs()
-                ficheiro.writeText(Json.encodeToString(PedidoCriacao(ocorrencia, fotoPath, videoPath)))
+                ficheiro.writeText(jsonPedido.encodeToString(PedidoCriacao(ocorrencia, fotoPath, videoPath)))
             }
             val trabalho = OneTimeWorkRequestBuilder<CriarOcorrenciaWorker>()
                 .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
@@ -175,4 +176,16 @@ internal class CriarOcorrenciaWorker(
         private fun ficheiroPedido(context: Context, id: String) =
             File(context.filesDir, "ocorrencias-pendentes/$id.json")
     }
+}
+
+
+// Os pedidos pendentes de versões anteriores guardavam as datas em milissegundos.
+private object TimestampPedidoSerializer : KSerializer<Timestamp> {
+    override val descriptor = PrimitiveSerialDescriptor("TimestampPedido", PrimitiveKind.LONG)
+
+    override fun serialize(encoder: Encoder, value: Timestamp) {
+        encoder.encodeLong(value.toDate().time)
+    }
+
+    override fun deserialize(decoder: Decoder) = Timestamp(Date(decoder.decodeLong()))
 }

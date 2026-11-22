@@ -28,6 +28,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.produceState
@@ -49,6 +50,7 @@ import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Icon
+import pt.isec.amov.a2024136885.cityfix.ui.components.LanguageSwitcher
 import pt.isec.amov.a2024136885.cityfix.data.model.User
 import androidx.compose.ui.tooling.preview.Preview
 import coil3.compose.AsyncImage
@@ -199,10 +201,11 @@ fun PainelPublicoContent(
     mostrarNotaVisitante: Boolean = true,
     carregarMiniatura: (suspend (String) -> String?)? = null
 ) {
-    var paginaAtual by remember { mutableIntStateOf(0) }
+    var paginaAtual by rememberSaveable { mutableIntStateOf(0) }
     val itensPorPagina = 5
     val totalPaginas = maxOf(1, (ocorrencias.size + itensPorPagina - 1) / itensPorPagina)
-    val inicio = paginaAtual * itensPorPagina
+    val paginaVisivel = paginaAtual.coerceAtMost(totalPaginas - 1)
+    val inicio = paginaVisivel * itensPorPagina
     val fim = minOf(inicio + itensPorPagina, ocorrencias.size)
     val ocorrenciasPaginadas = if (inicio < ocorrencias.size) ocorrencias.subList(inicio, fim) else emptyList()
 
@@ -211,7 +214,7 @@ fun PainelPublicoContent(
             modifier = Modifier
                 .fillMaxSize()
                 .background(MaterialTheme.colorScheme.background),
-            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 16.dp),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 88.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
         item {
@@ -221,7 +224,7 @@ fun PainelPublicoContent(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
-                    text = "CityFix",
+                    text = stringResource(R.string.app_name),
                     style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary
@@ -231,6 +234,7 @@ fun PainelPublicoContent(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
+                        LanguageSwitcher()
                         // Botões exclusivos de Operador
                         if (currentUser.perfil == "operador") {
                             IconButton(
@@ -242,7 +246,7 @@ fun PainelPublicoContent(
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Category,
-                                    contentDescription = "Gerir Categorias",
+                                    contentDescription = stringResource(R.string.operator_manage_categories),
                                     tint = MaterialTheme.colorScheme.primary
                                 )
                             }
@@ -256,7 +260,7 @@ fun PainelPublicoContent(
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.GroupAdd,
-                                    contentDescription = "Validar Utilizadores",
+                                    contentDescription = stringResource(R.string.operator_validate_users),
                                     tint = MaterialTheme.colorScheme.primary
                                 )
                             }
@@ -273,20 +277,22 @@ fun PainelPublicoContent(
                             if (!currentUser.fotoUrl.isNullOrBlank()) {
                                 AsyncImage(
                                     model = currentUser.fotoUrl,
-                                    contentDescription = "Perfil",
+                                    contentDescription = stringResource(R.string.operator_profile),
                                     modifier = Modifier.fillMaxSize(),
                                     contentScale = ContentScale.Crop
                                 )
                             } else {
                                 Icon(
                                     imageVector = Icons.Default.AccountCircle,
-                                    contentDescription = "Perfil",
+                                    contentDescription = stringResource(R.string.operator_profile),
                                     tint = MaterialTheme.colorScheme.primary,
                                     modifier = Modifier.size(32.dp)
                                 )
                             }
                         }
                     }
+                } else {
+                    LanguageSwitcher()
                 }
             }
         }
@@ -384,23 +390,23 @@ fun PainelPublicoContent(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     OutlinedButton(
-                        onClick = { if (paginaAtual > 0) paginaAtual-- },
-                        enabled = paginaAtual > 0
+                        onClick = { paginaAtual = paginaVisivel - 1 },
+                        enabled = paginaVisivel > 0
                     ) {
-                        Text("Anterior")
+                        Text(stringResource(R.string.public_page_previous))
                     }
 
                     Text(
-                        text = "Página ${paginaAtual + 1} de $totalPaginas",
+                        text = stringResource(R.string.public_page_of, paginaVisivel + 1, totalPaginas),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
 
                     OutlinedButton(
-                        onClick = { if (paginaAtual < totalPaginas - 1) paginaAtual++ },
-                        enabled = paginaAtual < totalPaginas - 1
+                        onClick = { paginaAtual = paginaVisivel + 1 },
+                        enabled = paginaVisivel < totalPaginas - 1
                     ) {
-                        Text("Seguinte")
+                        Text(stringResource(R.string.public_page_next))
                     }
                 }
             }
@@ -418,7 +424,9 @@ fun PainelPublicoContent(
         ) {
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.ExitToApp,
-                contentDescription = if (currentUser != null) "Terminar Sessão" else "Voltar ao Início"
+                contentDescription = stringResource(
+                    if (currentUser != null) R.string.operator_logout else R.string.public_return_home
+                )
             )
         }
     }

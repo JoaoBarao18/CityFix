@@ -14,8 +14,13 @@ import pt.isec.amov.a2024136885.cityfix.data.model.MediaAttachment
 import pt.isec.amov.a2024136885.cityfix.data.model.Ocorrencia
 import pt.isec.amov.a2024136885.cityfix.data.model.User
 import java.io.File
+import java.util.Date
 
-internal data class EventoOperacional(val estado: String, val instante: Timestamp?)
+internal data class EventoOperacional(
+    val estado: String,
+    val instante: Timestamp?,
+    val nota: String = ""
+)
 
 internal data class DetalheOperacional(
     val ocorrencia: Ocorrencia,
@@ -38,7 +43,8 @@ internal class PainelOperacionalRepository(
     suspend fun carregarDetalhe(operadorId: String, id: String): DetalheOperacional {
         verificarOperador(operadorId)
         val ref = firestore.collection("ocorrencias").document(id)
-        val ocorrencia = ref.get().await().ocorrencia()
+        val documento = ref.get().await()
+        val ocorrencia = documento.ocorrencia()
         val autor = ocorrencia.autorId.takeIf { it.isNotBlank() }?.let { autorId ->
             firestore.collection("utilizadores").document(autorId).get().await()
                 .takeIf { it.exists() }
@@ -53,17 +59,20 @@ internal class PainelOperacionalRepository(
         }
         val eventos = ref.collection("historico").get().await().documents.mapNotNull { evento ->
             val estado = evento.getString("estado") ?: return@mapNotNull null
-            val instante = evento.getTimestamp("dataHora") ?: evento.getTimestamp("data")
-            EventoOperacional(estado, instante)
-        }
+            val instante = evento.timestampOcorrencia("dataHora") ?: evento.timestampOcorrencia("data")
+            EventoOperacional(estado, instante, evento.getString("nota").orEmpty())
+        } + documento.historicoLegado()
         val historico = buildList {
             if (ocorrencia.criadoEm != null && eventos.none { it.estado == "aberto" }) {
                 add(EventoOperacional("aberto", ocorrencia.criadoEm))
             }
             addAll(eventos)
-        }.sortedBy { it.instante?.toDate()?.time ?: 0L }
+        }.distinct().sortedBy { it.instante }
         return DetalheOperacional(ocorrencia, autor, historico)
     }
+
+    suspend fun pedirInformacoes(operadorId: String, id: String): Ocorrencia =
+        mudarEstado(operadorId, id, "pedido_informacoes")
 
     suspend fun iniciarResolucao(operadorId: String, id: String): Ocorrencia =
         mudarEstado(operadorId, id, "em_resolucao")
@@ -94,7 +103,7 @@ internal class PainelOperacionalRepository(
 
     suspend fun urlAnexo(operadorId: String, storagePath: String): String {
         verificarOperador(operadorId)
-        return storage.reference.child(storagePath).downloadUrl.await().toString()
+        return storage.resolverUrlAnexo(storagePath)
     }
 
     private suspend fun mudarEstado(
@@ -112,15 +121,16 @@ internal class PainelOperacionalRepository(
             check(transacao.get(perfilRef).operadorValidado())
             val atual = transacao.get(ref).ocorrencia()
             if (atual.estado == destino &&
-                (destino == "em_resolucao" || atual.temComprovativos(comprovativos))
+                (destino != "resolvido" || atual.temComprovativos(comprovativos))
             ) {
                 return@runTransaction atual
             }
+            val pedidoPermitido = destino == "pedido_informacoes" && atual.estado == "aberto"
             val inicioPermitido = destino == "em_resolucao" &&
                 atual.estado in listOf("aberto", "pedido_informacoes")
             val resolucaoPermitida = destino == "resolvido" &&
                 atual.estado == "em_resolucao" && comprovativos.isNotEmpty()
-            check(inicioPermitido || resolucaoPermitida)
+            check(pedidoPermitido || inicioPermitido || resolucaoPermitida)
             val contribuicao = transacao.get(firestore.referenciaContribuicao(id))
             val categoria = if (atual.publica && destino in estadosAtivosOcorrencia && atual.categoriaId.isNotBlank()) {
                 transacao.get(firestore.collection("categorias").document(atual.categoriaId)).getString("nome").orEmpty()
@@ -199,11 +209,22 @@ private fun Ocorrencia.temComprovativos(comprovativos: List<MediaAttachment>): B
         comprovativosResolucao.any { it.storagePath == novo.storagePath }
     }
 
-private fun DocumentSnapshot.milisegundos(campo: String): Long? = when (val valor = get(campo)) {
-    is Number -> valor.toLong()
-    is Timestamp -> valor.toDate().time
+private fun Any?.comoTimestamp(): Timestamp? = when (this) {
+    is Timestamp -> this
+    is Number -> runCatching { Timestamp(Date(toLong())) }.getOrNull()
     else -> null
 }
+
+internal fun DocumentSnapshot.timestampOcorrencia(campo: String): Timestamp? =
+    get(campo).comoTimestamp()
+
+private fun DocumentSnapshot.historicoLegado(): List<EventoOperacional> =
+    (get("historicoEstados") as? List<*>).orEmpty().mapNotNull { valor ->
+        val evento = valor as? Map<*, *> ?: return@mapNotNull null
+        val estado = evento["estado"] as? String ?: return@mapNotNull null
+        val instante = evento["data"].comoTimestamp()
+        EventoOperacional(estado, instante, (evento["nota"] as? String).orEmpty())
+    }
 
 private fun DocumentSnapshot.anexos(campo: String): List<MediaAttachment> =
     (get(campo) as? List<*>).orEmpty().mapNotNull { valor ->
@@ -229,15 +250,16 @@ internal fun DocumentSnapshot.ocorrencia(): Ocorrencia {
         situacao = getString("situacao") ?: "avaria",
         descricao = getString("descricao").orEmpty(),
         estado = getString("estado") ?: "aberto",
-        publica = getBoolean("publica") ?: true,
+        publica = getBoolean("publica") == true,
         latitude = (get("latitude") as? Number)?.toDouble(),
         longitude = (get("longitude") as? Number)?.toDouble(),
         morada = getString("morada"),
         ficheiros = anexos("ficheiros"),
         comprovativosResolucao = anexos("comprovativosResolucao"),
-        criadoEm = getTimestamp("criadoEm"),
-        atualizadoEm = getTimestamp("atualizadoEm"),
-        resolvidoEm = getTimestamp("resolvidoEm"),
-        encerradoEm = getTimestamp("encerradoEm")
+        criadoEm = timestampOcorrencia("criadoEm"),
+        atualizadoEm = timestampOcorrencia("atualizadoEm"),
+        resolvidoEm = timestampOcorrencia("resolvidoEm"),
+        encerradoEm = timestampOcorrencia("encerradoEm"),
+        proximidadeEm = timestampOcorrencia("proximidadeEm")
     )
 }

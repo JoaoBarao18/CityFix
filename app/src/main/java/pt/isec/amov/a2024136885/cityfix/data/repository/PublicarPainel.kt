@@ -60,7 +60,7 @@ internal fun atualizarPainelPublico(
             "categoria" to nomeCategoria,
             "situacao" to ocorrencia.situacao,
             "estado" to ocorrencia.estado,
-            "atualizadoEm" to ocorrencia.atualizadoEm,
+            "atualizadoEm" to (ocorrencia.atualizadoEm?.toDate()?.time ?: criadoEmMs),
             "latitudeAproximada" to ocorrencia.latitude?.takeIf { it in -90.0..90.0 }?.let { round(it * 10) / 10 },
             "longitudeAproximada" to ocorrencia.longitude?.takeIf { it in -180.0..180.0 }?.let { round(it * 10) / 10 },
             "anexos" to anexos

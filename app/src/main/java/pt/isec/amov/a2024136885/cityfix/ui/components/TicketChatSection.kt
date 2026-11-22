@@ -11,16 +11,36 @@ import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
+import pt.isec.amov.a2024136885.cityfix.R
 import pt.isec.amov.a2024136885.cityfix.data.model.Message
+import pt.isec.amov.a2024136885.cityfix.data.repository.ChatRepository
 import pt.isec.amov.a2024136885.cityfix.ui.viewmodel.ChatUiState
+import pt.isec.amov.a2024136885.cityfix.ui.viewmodel.ChatViewModel
+import pt.isec.amov.a2024136885.cityfix.ui.viewmodel.ChatViewModelFactory
 import java.text.SimpleDateFormat
-import java.util.Locale
+
+@Composable
+internal fun ChatOcorrencia(id: String, encerrada: Boolean) {
+    val factory = remember(id) { ChatViewModelFactory(id, ChatRepository()) }
+    val chat: ChatViewModel = viewModel(key = "chat:$id", factory = factory)
+    val estado by chat.uiState.collectAsStateWithLifecycle()
+    LaunchedEffect(encerrada) { chat.setTicketEncerrado(encerrada) }
+    TicketChatSection(
+        uiState = estado.copy(isEncerrada = encerrada),
+        onSendMessage = chat::sendMessage
+    )
+}
 
 @Composable
 fun TicketChatSection(
@@ -28,7 +48,14 @@ fun TicketChatSection(
     onSendMessage: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var inputText by remember { mutableStateOf("") }
+    var inputText by rememberSaveable { mutableStateOf("") }
+    var ultimoEnvioConfirmado by rememberSaveable { mutableIntStateOf(uiState.mensagensEnviadas) }
+    LaunchedEffect(uiState.mensagensEnviadas) {
+        if (ultimoEnvioConfirmado != uiState.mensagensEnviadas) {
+            inputText = ""
+            ultimoEnvioConfirmado = uiState.mensagensEnviadas
+        }
+    }
     val listState = rememberLazyListState()
     val primaryGreen = MaterialTheme.colorScheme.primary
 
@@ -50,12 +77,16 @@ fun TicketChatSection(
             .padding(12.dp)
     ) {
         Text(
-            text = "Esclarecimentos e Comunicação",
+            text = stringResource(R.string.chat_title),
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold,
             color = primaryGreen,
             modifier = Modifier.padding(bottom = 8.dp)
         )
+
+        if (uiState.errorMessage != null) {
+            Text(stringResource(R.string.chat_error), color = MaterialTheme.colorScheme.error)
+        }
 
         // Lista de Mensagens
         LazyColumn(
@@ -65,10 +96,12 @@ fun TicketChatSection(
                 .fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            if (uiState.messages.isEmpty()) {
+            if (uiState.isLoading) {
+                item { CircularProgressIndicator(modifier = Modifier.size(20.dp)) }
+            } else if (uiState.messages.isEmpty() && uiState.errorMessage == null) {
                 item {
                     Text(
-                        text = "Sem mensagens ainda. Utilize esta área para comunicar com os serviços camarários.",
+                        text = stringResource(R.string.chat_empty),
                         color = Color.Gray,
                         style = MaterialTheme.typography.bodySmall,
                         modifier = Modifier.padding(vertical = 16.dp)
@@ -96,7 +129,7 @@ fun TicketChatSection(
                 Icon(Icons.Default.Lock, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(16.dp))
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
-                    text = "Ocorrência encerrada. O canal de mensagens está desativado.",
+                    text = stringResource(R.string.chat_locked),
                     style = MaterialTheme.typography.bodySmall,
                     color = Color.Gray
                 )
@@ -109,7 +142,7 @@ fun TicketChatSection(
                 OutlinedTextField(
                     value = inputText,
                     onValueChange = { inputText = it },
-                    placeholder = { Text("Mensagem...", fontSize = 14.sp) },
+                    label = { Text(stringResource(R.string.chat_input)) },
                     modifier = Modifier.weight(1f),
                     shape = RoundedCornerShape(20.dp),
                     singleLine = true,
@@ -122,7 +155,6 @@ fun TicketChatSection(
                     onClick = {
                         if (inputText.isNotBlank()) {
                             onSendMessage(inputText)
-                            inputText = ""
                         }
                     },
                     enabled = inputText.isNotBlank() && !uiState.isSending
@@ -132,7 +164,7 @@ fun TicketChatSection(
                     } else {
                         Icon(
                             Icons.AutoMirrored.Filled.Send,
-                            contentDescription = "Enviar",
+                            contentDescription = stringResource(R.string.chat_send),
                             tint = if (inputText.isNotBlank()) primaryGreen else Color.Gray
                         )
                     }
@@ -149,7 +181,8 @@ fun MessageBubble(message: Message, isMine: Boolean) {
     val textColor = if (isMine) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
     val alignment = if (isMine) Alignment.End else Alignment.Start
 
-    val timeFormat = remember { SimpleDateFormat("HH:mm", Locale.getDefault()) }
+    val locale = LocalConfiguration.current.locales[0]
+    val timeFormat = remember(locale) { SimpleDateFormat("HH:mm", locale) }
     val formattedTime = message.enviadoEm?.toDate()?.let { timeFormat.format(it) } ?: ""
 
     Column(
@@ -157,9 +190,10 @@ fun MessageBubble(message: Message, isMine: Boolean) {
         horizontalAlignment = alignment
     ) {
         if (!isMine) {
-            val roleBadge = if (message.perfil == "operador") " (Operador)" else ""
             Text(
-                text = "${message.autorNome}$roleBadge",
+                text = if (message.perfil == "operador") {
+                    stringResource(R.string.chat_operator, message.autorNome)
+                } else message.autorNome,
                 style = MaterialTheme.typography.labelSmall,
                 color = Color.Gray,
                 modifier = Modifier.padding(start = 4.dp, bottom = 2.dp)
