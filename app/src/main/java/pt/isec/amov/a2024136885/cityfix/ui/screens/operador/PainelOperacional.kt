@@ -1,20 +1,36 @@
 package pt.isec.amov.a2024136885.cityfix.ui.screens.operador
 
+import androidx.compose.material3.ElevatedCard
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Surface
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.height
+import androidx.compose.ui.Alignment
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material3.Card
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Surface
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -116,26 +132,63 @@ fun PainelOperacionalContent(
                         ?.let { stringResource(it) } ?: ocorrencia.situacao
                     val estado = estadosOcorrencia[ocorrencia.estado]
                         ?.let { stringResource(it) } ?: ocorrencia.estado
-                    Card(
+                    ElevatedCard(
                         onClick = { onAbrirOcorrencia(ocorrencia.id) },
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
+                        colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surface),
+                        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)
                     ) {
                         Column(
                             modifier = Modifier.padding(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            Text(situacao, style = MaterialTheme.typography.titleMedium)
+                            Row(
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Surface(
+                                    shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
+                                    color = MaterialTheme.colorScheme.primaryContainer,
+                                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                                ) {
+                                    Text(
+                                        text = estado,
+                                        style = MaterialTheme.typography.labelMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                    )
+                                }
+                                Text(
+                                    text = "ID: ${ocorrencia.id.take(8)}...",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = Color.Gray
+                                )
+                            }
+                            
+                            Spacer(modifier = Modifier.height(4.dp))
+
                             Text(
-                                text = ocorrencia.descricao,
-                                style = MaterialTheme.typography.bodyMedium,
-                                overflow = TextOverflow.Ellipsis,
-                                maxLines = 2
+                                text = ocorrencia.categoriaId.uppercase(),
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
                             )
                             Text(
-                                text = estado,
+                                text = situacao,
                                 style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.primary
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
+
+                            if (ocorrencia.descricao.isNotBlank()) {
+                                Text(
+                                    text = ocorrencia.descricao,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    overflow = TextOverflow.Ellipsis,
+                                    maxLines = 1,
+                                    color = Color.Gray
+                                )
+                            }
                         }
                     }
                 }
@@ -171,82 +224,115 @@ fun DetalheOcoorenciaOperadorContent(
         modifier = Modifier.fillMaxSize()
             .verticalScroll(rememberScrollState())
             .padding(16.dp),
-
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ){
-        IconButton(onClick = onVoltar) {
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                contentDescription = stringResource(R.string.public_report_back)
-            )
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            IconButton(onClick = onVoltar) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = stringResource(R.string.public_report_back)
+                )
+            }
+            Text(stringResource(R.string.public_report_back), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
         }
 
-        Text(situacao, style = MaterialTheme.typography.headlineSmall)
-        Text(estado, color = MaterialTheme.colorScheme.primary)
+        // INFO DO AUTOR
+        ElevatedCard(
+            modifier = Modifier.fillMaxWidth(),
+            shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
+            colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surface)
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text(stringResource(R.string.operational_author_title), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.Person, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(autor?.nome ?: "Autor Desconhecido", style = MaterialTheme.typography.bodyMedium)
+                }
+                if(contactos.isNotEmpty()){
+                    autor?.telefone?.takeIf { it.isNotBlank() }?.let {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(it, style = MaterialTheme.typography.bodySmall, color = Color.Gray, modifier = Modifier.padding(start = 26.dp))
+                    }
+                    autor?.email?.takeIf { it.isNotBlank() }?.let {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(it, style = MaterialTheme.typography.bodySmall, color = Color.Gray, modifier = Modifier.padding(start = 26.dp))
+                    }
+                } else {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(stringResource(R.string.operational_no_contact), style = MaterialTheme.typography.bodySmall, color = Color.Gray, modifier = Modifier.padding(start = 26.dp))
+                }
+            }
+        }
 
-        Text(
-            stringResource(R.string.report_description),
-            style = MaterialTheme.typography.titleMedium
-        )
-        Text(ocorrencia.descricao)
+        // INFO DA OCORRÊNCIA
+        ElevatedCard(
+            modifier = Modifier.fillMaxWidth(),
+            shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
+            colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surface)
+        ) {
+            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(stringResource(R.string.report_description), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                Text("ID: ${ocorrencia.id}", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+                Text(ocorrencia.categoriaId.uppercase(), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Text(situacao, style = MaterialTheme.typography.bodyMedium)
+                
+                if (ocorrencia.descricao.isNotBlank()) {
+                    androidx.compose.material3.HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), color = Color.LightGray.copy(alpha = 0.5f))
+                    Text(ocorrencia.descricao, style = MaterialTheme.typography.bodyMedium)
+                }
+                
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    stringResource(R.string.operational_location_title),
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    if(latitude != null && longitude != null){
+                        stringResource(
+                            R.string.operational_coordinates,
+                            latitude.toString(),
+                            longitude.toString()
+                        )
+                    } else {
+                        stringResource(R.string.operational_no_coordinates)
+                    },
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+        }
+
         anexos()
-        Text(
-            stringResource(R.string.operational_location_title),
-            style = MaterialTheme.typography.titleMedium
-        )
-
-        Text(
-            if(latitude != null && longitude != null){
-                stringResource(
-                    R.string.operational_coordinates,
-                    latitude.toString(),
-                    longitude.toString()
-                    )
-            } else {
-                stringResource(R.string.operational_no_coordinates)
-            }
-        )
-        Text(
-            stringResource(R.string.operational_author_title),
-            style = MaterialTheme.typography.titleMedium
-        )
-
-        if(contactos.isEmpty()){
-            Text(stringResource(R.string.operational_no_contact))
-        }else{
-            contactos.forEach { contacto -> Text(contacto) }
-        }
-
-        Text(
-            text = stringResource(R.string.operational_history_title),
-            style= MaterialTheme.typography.titleMedium
-        )
-        if(historico.isEmpty()){
-            Text(
-                stringResource(R.string.operational_history_empty)
-            )
-        }
-
-        historico.forEach {
-            evt ->
-            val evtEstado = estadosOcorrencia[evt.estado]
-                ?.let {stringResource(it)} ?: evt.estado
-
-            Column(){
-               Text(
-                   evtEstado,
-                   style = MaterialTheme.typography.labelLarge
-               )
-                if (evt.dataHora.isNotBlank()) {
-                    Text(evt.dataHora, style = MaterialTheme.typography.bodySmall)
-                }
-                if (evt.nota.isNotBlank()) {
-                    Text(evt.nota, style = MaterialTheme.typography.bodyMedium)
-                }
-            }
-        }
-
         acoes()
+        
+        // HISTÓRICO
+        if (historico.isNotEmpty()) {
+            ElevatedCard(
+                modifier = Modifier.fillMaxWidth(),
+                shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
+                colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
+            ) {
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(stringResource(R.string.operational_history_title), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                    historico.forEach { evento ->
+                        val evtEstado = estadosOcorrencia[evento.estado]?.let { stringResource(it) } ?: evento.estado
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(evtEstado, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                                if (evento.nota.isNotBlank()) {
+                                    Text(evento.nota, style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                                }
+                            }
+                            Text(evento.dataHora, style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+                        }
+                        androidx.compose.material3.HorizontalDivider(color = Color.LightGray.copy(alpha = 0.3f))
+                    }
+                }
+            }
+        }
     }
 }
 

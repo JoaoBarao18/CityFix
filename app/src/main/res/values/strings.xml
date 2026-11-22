@@ -137,4 +137,5 @@
     <string name="common_cancel">Cancel</string>
     <string name="operational_request_info">Request information</string>
     <string name="operational_request_info_error">Could not request information.</string>
+    <string name="change_language">PT</string>
 </resources>

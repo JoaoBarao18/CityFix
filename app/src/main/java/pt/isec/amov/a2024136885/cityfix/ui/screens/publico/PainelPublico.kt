@@ -50,6 +50,7 @@ import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Icon
+import pt.isec.amov.a2024136885.cityfix.ui.components.LanguageSwitcher
 import pt.isec.amov.a2024136885.cityfix.data.model.User
 import androidx.compose.ui.tooling.preview.Preview
 import coil3.compose.AsyncImage
@@ -233,6 +234,7 @@ fun PainelPublicoContent(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
+                        LanguageSwitcher()
                         // Botões exclusivos de Operador
                         if (currentUser.perfil == "operador") {
                             IconButton(
@@ -289,6 +291,8 @@ fun PainelPublicoContent(
                             }
                         }
                     }
+                } else {
+                    LanguageSwitcher()
                 }
             }
         }

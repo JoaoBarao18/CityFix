@@ -47,6 +47,8 @@ import pt.isec.amov.a2024136885.cityfix.ui.components.rememberCapturaMultimedia
 import pt.isec.amov.a2024136885.cityfix.ui.viewmodel.PainelOperacionalViewModel
 import java.io.File
 import java.text.DateFormat
+import java.util.Locale
+import java.util.Date
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import pt.isec.amov.a2024136885.cityfix.data.repository.GuardarResolucaoWorker
@@ -128,9 +130,10 @@ internal fun DetalheOperacionalScreen(
     }
     val historico = remember(detalhe.historico, dataHora) {
         detalhe.historico.map { evento ->
+            val dataEmDate = evento.instante?.toDate()
             EventoHistoricoUi(
                 evento.estado,
-                evento.instante?.toDate()?.let(dataHora::format).orEmpty(),
+                dataEmDate?.let { d -> dataHora.format(d) } ?: "",
                 evento.nota
             )
         }
